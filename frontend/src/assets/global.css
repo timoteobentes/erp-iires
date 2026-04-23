@@ -57,3 +57,31 @@
     /* Cor dark-300 */
   }
 }
+
+/* Ajustes finos para o SubMenu do Ant Design no Sidebar Escuro */
+.custom-dark-menu .ant-menu-submenu-title {
+  border-radius: 12px !important;
+  color: #a8aebc !important;
+  /* text-dark-300 */
+}
+
+.custom-dark-menu .ant-menu-submenu-title:hover {
+  background-color: #2d3040 !important;
+  /* bg-dark-800 */
+}
+
+.custom-dark-menu .ant-menu-sub {
+  background-color: transparent !important;
+}
+
+.custom-dark-menu .ant-menu-item {
+  border-radius: 12px !important;
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+}
+
+.custom-dark-menu .ant-menu-item-selected {
+  background-color: #389334 !important;
+  /* bg-primary-500 */
+  color: #ffffff !important;
+}
