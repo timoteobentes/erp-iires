@@ -13,7 +13,7 @@ export default {
           200: '#baefba',
           300: '#86e186',
           400: '#4cc94c',
-          500: '#389235', // Verde Institucional Base
+          500: '#389334', // Verde Institucional Base
           600: '#2b782b',
           700: '#245f24',
           800: '#1e4c1e',

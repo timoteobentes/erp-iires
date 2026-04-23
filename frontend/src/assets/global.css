@@ -31,5 +31,29 @@
 /* Fallback/Overrides Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d1d4db transparent; /* dark-200 color approx */
+  scrollbar-color: #d1d4db transparent;
+  /* dark-200 color approx */
+}
+
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #d1d4db;
+    /* Cor dark-200 do nosso design system */
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a8aebc;
+    /* Cor dark-300 */
+  }
 }
