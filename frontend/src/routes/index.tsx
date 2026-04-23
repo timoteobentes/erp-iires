@@ -11,7 +11,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 import MainLayout from '../layouts/MainLayout';
 
 // Módulos
-import { Dashboard } from '../modules/Dashboard/pages';
+import Dashboard from '../modules/Dashboard/pages';
 import ListProjects from '../modules/Projects/pages/List';
 import FormProjects from '../modules/Projects/pages/Form';
 import ViewProjects from '../modules/Projects/pages/View';
