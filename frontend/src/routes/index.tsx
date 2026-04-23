@@ -16,6 +16,14 @@ import ListProjects from '../modules/Projects/pages/List';
 import FormProjects from '../modules/Projects/pages/Form';
 import ViewProjects from '../modules/Projects/pages/View';
 
+import FinanceOverview from '../modules/Finance/pages/Overview';
+import PayablesList from '../modules/Finance/pages/Payables/PayablesList';
+import PayablesForm from '../modules/Finance/pages/Payables/PayablesForm';
+import PayablesView from '../modules/Finance/pages/Payables/PayablesView';
+import ReceivablesList from '../modules/Finance/pages/Receivables/ReceivablesList';
+import ReceivablesForm from '../modules/Finance/pages/Receivables/ReceivablesForm';
+import ReceivablesView from '../modules/Finance/pages/Receivables/ReceivablesView';
+
 // Placeholders para novos módulos
 const Placeholder = ({ name }: { name: string }) => <div className="p-6"><h1>{name} (Em breve)</h1></div>;
 
@@ -40,8 +48,18 @@ export function AppRoutes() {
           <Route path="/projects/:id/edit" element={<FormProjects />} />
           <Route path="/projects/:id" element={<ViewProjects />} />
 
-          {/* Novos Módulos (Skeletons) */}
-          <Route path="/finance" element={<Placeholder name="Financeiro" />} />
+          {/* Módulo Financeiro */}
+          <Route path="/finance" element={<FinanceOverview />} />
+          <Route path="/finance/payables" element={<PayablesList />} />
+          <Route path="/finance/payables/new" element={<PayablesForm />} />
+          <Route path="/finance/payables/:id/edit" element={<PayablesForm />} />
+          <Route path="/finance/payables/:id" element={<PayablesView />} />
+
+          <Route path="/finance/receivables" element={<ReceivablesList />} />
+          <Route path="/finance/receivables/new" element={<ReceivablesForm />} />
+          <Route path="/finance/receivables/:id/edit" element={<ReceivablesForm />} />
+          <Route path="/finance/receivables/:id" element={<ReceivablesView />} />
+
           <Route path="/crm" element={<Placeholder name="CRM" />} />
           <Route path="/reports" element={<Placeholder name="Relatórios" />} />
           <Route path="/settings" element={<Placeholder name="Configurações" />} />
