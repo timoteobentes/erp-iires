@@ -1,16 +1,12 @@
-import React from 'react';
-import { Button, Card, Tag, Row, Col, Avatar, Divider, Space } from 'antd';
+import { Button, Card, Tag, Row, Col, Avatar, Divider } from 'antd';
 import { 
   ArrowLeft, 
   Edit, 
-  Mail, 
-  Phone, 
+  Mail,  
   MapPin, 
   ShieldCheck, 
   User, 
-  Briefcase,
   IdCard,
-  Hash
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
