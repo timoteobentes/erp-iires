@@ -37,8 +37,11 @@ import PartnersList from '../modules/People/pages/Partners/PartnersList';
 import PartnersForm from '../modules/People/pages/Partners/PartnersForm';
 import PartnersView from '../modules/People/pages/Partners/PartnersView';
 
-// Placeholders para novos módulos
-const Placeholder = ({ name }: { name: string }) => <div className="p-6"><h1>{name} (Em breve)</h1></div>;
+import ReportsDashboard from '../modules/Reports/pages/ReportsDashboard';
+
+import SystemSettings from '../modules/Settings/pages/SystemSettings';
+
+import UserProfile from '../modules/Profile/pages/UserProfile';
 
 export function AppRoutes() {
   return (
@@ -91,9 +94,11 @@ export function AppRoutes() {
           <Route path="/people/partners/:id/edit" element={<PartnersForm />} />
           <Route path="/people/partners/:id" element={<PartnersView />} />
 
-          <Route path="/crm" element={<Placeholder name="CRM" />} />
-          <Route path="/reports" element={<Placeholder name="Relatórios" />} />
-          <Route path="/settings" element={<Placeholder name="Configurações" />} />
+          {/* Módulo Relatórios */}
+          <Route path="/reports" element={<ReportsDashboard />} />
+
+          <Route path="/settings" element={<SystemSettings />} />
+          <Route path="/profile" element={<UserProfile />} />
         </Route>
       </Route>
 

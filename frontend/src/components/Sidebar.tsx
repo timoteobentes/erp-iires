@@ -103,7 +103,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             }))}
           />
         </div>
-        
       </div>
     </Sider>
   );

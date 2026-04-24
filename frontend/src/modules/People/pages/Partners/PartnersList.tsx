@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Table, Button, Input, Tag, Modal, Space, Card, Tooltip, Avatar, Row, Col, Select, Dropdown } from 'antd';
-import { Plus, Search, Filter, Eye, Edit, Trash2, X, Handshake, LayoutGrid, List as ListIcon, MoreVertical, Briefcase, Building2 } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Edit, Trash2, X, LayoutGrid, List as ListIcon, MoreVertical, Briefcase, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 
