@@ -33,6 +33,9 @@ import VolunteersView from '../modules/People/pages/Volunteers/VolunteersView';
 import DonorsList from '../modules/People/pages/Donors/DonorsList';
 import DonorsForm from '../modules/People/pages/Donors/DonorsForm';
 import DonorsView from '../modules/People/pages/Donors/DonorsView';
+import PartnersList from '../modules/People/pages/Partners/PartnersList';
+import PartnersForm from '../modules/People/pages/Partners/PartnersForm';
+import PartnersView from '../modules/People/pages/Partners/PartnersView';
 
 // Placeholders para novos módulos
 const Placeholder = ({ name }: { name: string }) => <div className="p-6"><h1>{name} (Em breve)</h1></div>;
@@ -83,6 +86,10 @@ export function AppRoutes() {
           <Route path="/people/donors/new" element={<DonorsForm />} />
           <Route path="/people/donors/:id/edit" element={<DonorsForm />} />
           <Route path="/people/donors/:id" element={<DonorsView />} />
+          <Route path="/people/partners" element={<PartnersList />} />
+          <Route path="/people/partners/new" element={<PartnersForm />} />
+          <Route path="/people/partners/:id/edit" element={<PartnersForm />} />
+          <Route path="/people/partners/:id" element={<PartnersView />} />
 
           <Route path="/crm" element={<Placeholder name="CRM" />} />
           <Route path="/reports" element={<Placeholder name="Relatórios" />} />

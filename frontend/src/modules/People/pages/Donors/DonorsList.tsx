@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Table, Button, Input, Tag, Modal, Space, Card, Tooltip, Avatar, Row, Col, Select, Dropdown } from 'antd';
 import { 
-  Plus, Search, Filter, Eye, Edit, Trash2, X, HeartHandshake, 
+  Plus, Search, Filter, Eye, Edit, Trash2, X,
   LayoutGrid, List as ListIcon, MoreVertical, TrendingUp, Calendar 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -135,9 +135,9 @@ export default function DonorsList() {
       {/* Header do Módulo */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 bg-secondary-50 rounded-2xl flex items-center justify-center text-secondary-600 shadow-sm border border-secondary-100">
+          {/* <div className="h-12 w-12 bg-secondary-50 rounded-2xl flex items-center justify-center text-secondary-600 shadow-sm border border-secondary-100">
             <HeartHandshake size={24} />
-          </div>
+          </div> */}
           <div>
             <h1 className="text-2xl font-bold text-dark-900 tracking-tight">Doadores</h1>
             <p className="text-dark-400 text-sm mt-0.5">Gestão de pessoas físicas, jurídicas e histórico de doações.</p>
