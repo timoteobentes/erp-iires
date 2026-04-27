@@ -15,11 +15,11 @@ interface TeamMember {
 }
 
 const mockData: TeamMember[] = [
-  { id: '1', name: 'Timóteo Silva', email: 'timoteo@iires.org.br', role: 'Diretor Técnico', group: 'Tecnologia', level: 'Diretor', status: 'active' },
-  { id: '2', name: 'Ana Silva', email: 'ana.silva@iires.org.br', role: 'Gerente de Projetos', group: 'Administrador', level: 'Líder', status: 'active' },
-  { id: '3', name: 'Marcos Oliveira', email: 'marcos@iires.org.br', role: 'Analista Financeiro', group: 'Financeiro', level: 'Operacional', status: 'active' },
-  { id: '4', name: 'Carla Dias', email: 'carla@iires.org.br', role: 'Captação de Recursos', group: 'Comercial', level: 'Líder', status: 'active' },
-  { id: '5', name: 'Beto Gomes', email: 'beto@iires.org.br', role: 'Designer', group: 'Inovação', level: 'Operacional', status: 'inactive' },
+  { id: '1', name: 'Timóteo Bentes', email: 'timoteo@iires.org', role: 'Analista TI Jr', group: 'Tecnologia', level: 'Operacional', status: 'active' },
+  { id: '2', name: 'Ana Silva', email: 'ana.silva@iires.org', role: 'Gerente de Projetos', group: 'Administrador', level: 'Líder', status: 'active' },
+  { id: '3', name: 'Marcos Oliveira', email: 'marcos@iires.org', role: 'Analista Financeiro', group: 'Financeiro', level: 'Operacional', status: 'active' },
+  { id: '4', name: 'Carla Dias', email: 'carla@iires.org', role: 'Coordenadora de Projetos', group: 'Comercial', level: 'Líder', status: 'active' },
+  { id: '5', name: 'Beto Gomes', email: 'beto@iires.org', role: 'Designer', group: 'Inovação', level: 'Operacional', status: 'inactive' },
 ];
 
 export default function TeamList() {

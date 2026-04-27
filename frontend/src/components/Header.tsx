@@ -59,7 +59,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
     { key: 'profile', label: 'Meu Perfil', icon: <User size={16} />, onClick: () => navigate('/profile') },
     { key: 'settings', label: 'Configurações', icon: <Settings size={16} />, onClick: () => navigate('/settings') },
     { type: 'divider' as const },
-    { key: 'logout', label: 'Sair do Sistema', icon: <LogOut size={16} />, danger: true },
+    { key: 'logout', label: 'Sair do Sistema', icon: <LogOut size={16} />, danger: true, onClick: () => navigate("/login") },
   ];
 
   return (
@@ -140,8 +140,8 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
           dropdownRender={(menu) => (
             <div className="bg-white rounded-xl shadow-card border border-dark-100 overflow-hidden">
               <div className="p-4 bg-dark-50/30">
-                <p className="text-sm font-bold text-dark-900 leading-none">Timóteo Silva</p>
-                <p className="text-xs text-dark-400 mt-1">timoteo@amadev.com.br</p>
+                <p className="text-sm font-bold text-dark-900 leading-none">Timóteo Bentes</p>
+                <p className="text-xs text-dark-400 mt-1">timoteo@iires.org</p>
               </div>
               <Divider className="my-0" />
               {React.cloneElement(menu as React.ReactElement, {
@@ -152,8 +152,8 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
         >
           <div className="flex items-center gap-3 cursor-pointer group p-1 rounded-xl hover:bg-background transition-all">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-dark-900 group-hover:text-primary-500 transition-colors leading-none">Timóteo Silva</p>
-              <span className="text-xs text-dark-400">Diretor Técnico</span>
+              <p className="text-sm font-bold text-dark-900 group-hover:text-primary-500 transition-colors leading-none">Timóteo Bentes</p>
+              <span className="text-xs text-dark-400">Analista TI Jr</span>
             </div>
             <Avatar 
               size={45} 

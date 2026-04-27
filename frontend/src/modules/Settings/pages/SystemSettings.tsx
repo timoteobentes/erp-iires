@@ -17,8 +17,8 @@ export default function SystemSettings() {
   const initialValues = {
     ongName: 'Instituto de Inovação e Resgate Social (IIRes)',
     ongCnpj: '27.865.757/0001-02',
-    ongEmail: 'contato@iires.org.br',
-    ongWebsite: 'www.iires.org.br',
+    ongEmail: 'contato@iires.org',
+    ongWebsite: 'www.iires.org',
     force2FA: true,
     sessionTimeout: '30',
     smtpHost: 'smtp.sendgrid.net',

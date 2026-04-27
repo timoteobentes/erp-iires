@@ -127,7 +127,7 @@ export default function TeamForm() {
             
             <Col span={24}><Divider className="my-4" /></Col>
 
-            <Col xs={24} md={12}><Form.Item label={<span className="font-bold text-dark-600">E-mail de Login (Corporativo)</span>} name="email" rules={[{ required: true }]}><Input size="large" className="rounded-xl" placeholder="login@iires.org.br" /></Form.Item></Col>
+            <Col xs={24} md={12}><Form.Item label={<span className="font-bold text-dark-600">E-mail de Login (Corporativo)</span>} name="email" rules={[{ required: true }]}><Input size="large" className="rounded-xl" placeholder="login@iires.org" /></Form.Item></Col>
             <Col xs={24} md={12}>
               <Form.Item label={<span className="font-bold text-dark-600">Grupo de Acesso (Permissões)</span>} name="group">
                 <Select size="large" className="rounded-xl [&_.ant-select-selector]:!rounded-xl" placeholder="Selecione o grupo">

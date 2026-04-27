@@ -17,12 +17,12 @@ export default function TeamView() {
   // Mock de dados completo para a visualização
   const member = {
     id,
-    name: 'Timóteo Silva',
-    email: 'timoteo@iires.org.br',
+    name: 'Timóteo Bentes',
+    email: 'timoteo@iires.org',
     personal_email: 'timoteo.dev@gmail.com',
     phone: '(11) 98765-4321',
     cpf: '123.456.789-00',
-    role: 'Diretor Técnico',
+    role: 'Analista TI Jr',
     level: 'Diretor',
     group: 'Tecnologia',
     status: 'active',

@@ -18,10 +18,10 @@ export default function UserProfile() {
 
   // Dados mockados do usuário logado
   const user = {
-    name: 'Timóteo Silva',
-    email: 'timoteo@iires.org.br',
+    name: 'Timóteo Bentes',
+    email: 'timoteo@iires.org',
     phone: '(11) 98765-4321',
-    role: 'Diretor Técnico',
+    role: 'Analista TI Jr',
     group: 'Tecnologia',
     avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=Timoteo`,
   };

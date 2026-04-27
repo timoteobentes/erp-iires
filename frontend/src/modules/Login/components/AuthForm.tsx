@@ -2,6 +2,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, Input, Button } from 'antd';
+import { useNavigate } from 'react-router-dom';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'E-mail é obrigatório').email('Formato de e-mail inválido'),
@@ -11,6 +12,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function AuthForm() {
+  const navigate = useNavigate();
   const { control, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -22,6 +24,7 @@ export function AuthForm() {
   const onSubmit = (data: LoginFormValues) => {
     console.log('Login Data:', data);
     // Submit logic here
+    navigate("/dashboard")
   };
 
   return (
