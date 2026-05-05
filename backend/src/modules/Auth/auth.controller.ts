@@ -109,4 +109,46 @@ export class AuthController {
       res.status(500).json({ error: 'Erro interno no servidor.' });
     }
   }
+
+  // 3. ROTA DO PERFIL DO USUÁRIO LOGADO (Get Me)
+  async getMe(req: Request, res: Response): Promise<void> {
+    try {
+      // O ID vem magicamente do nosso middleware! O usuário não precisa mandar no body.
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'Usuário não identificado.' });
+        return;
+      }
+
+      // Busca o usuário no banco
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          // Usamos o select para garantir que a SENHA NUNCA seja retornada!
+          id: true,
+          name: true,
+          email: true,
+          cpf: true,
+          phone: true,
+          role: true,
+          level: true,
+          group: true,
+          status: true,
+          createdAt: true
+        }
+      });
+
+      if (!user) {
+        res.status(404).json({ error: 'Usuário não encontrado.' });
+        return;
+      }
+
+      res.status(200).json(user);
+
+    } catch (error) {
+      console.error('Erro no getMe:', error);
+      res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+  }
 }
