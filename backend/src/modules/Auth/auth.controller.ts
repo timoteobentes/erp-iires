@@ -1,6 +1,7 @@
 import { type Request, type Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import prisma from '../../config/prisma.js';
 
 export class AuthController {
@@ -148,6 +149,99 @@ export class AuthController {
 
     } catch (error) {
       console.error('Erro no getMe:', error);
+      res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+  }
+
+  // 4. ESQUECI A SENHA (Gera Token)
+  async forgotPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        res.status(400).json({ error: 'O e-mail é obrigatório.' });
+        return;
+      }
+
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      if (!user) {
+        // Por segurança, não avisamos se o e-mail existe ou não.
+        res.status(200).json({ message: 'Se o e-mail existir, um link de recuperação será enviado.' });
+        return;
+      }
+
+      // Gera um token aleatório de 32 bytes em formato Hexadecimal
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      
+      // Define a validade do token para 1 hora (3600000 ms)
+      const resetExpires = new Date(Date.now() + 3600000);
+
+      // Salva no banco
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetPasswordToken: resetToken,
+          resetPasswordExpires: resetExpires,
+        }
+      });
+
+      // SIMULAÇÃO DE E-MAIL
+      // No futuro, aqui vai o código do Resend/SendGrid/Nodemailer
+      console.log('=============================================');
+      console.log(`📩 E-MAIL ENVIADO PARA: ${user.email}`);
+      console.log(`🔗 LINK: http://localhost:5173/reset-password?token=${resetToken}`);
+      console.log('=============================================');
+
+      res.status(200).json({ message: 'Se o e-mail existir, um link de recuperação será enviado.' });
+
+    } catch (error) {
+      console.error('Erro no forgotPassword:', error);
+      res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+  }
+
+  // 5. REDEFINIR SENHA (Com Token)
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        res.status(400).json({ error: 'Token e nova senha são obrigatórios.' });
+        return;
+      }
+
+      // Busca o usuário que tem esse token e se a data de validade é MAIOR que agora
+      const user = await prisma.user.findFirst({
+        where: {
+          resetPasswordToken: token,
+          resetPasswordExpires: { gt: new Date() }, // gt = greater than (maior que)
+        }
+      });
+
+      if (!user) {
+        res.status(400).json({ error: 'Token inválido ou expirado.' });
+        return;
+      }
+
+      // Criptografa a nova senha
+      const salt = await bcrypt.genSalt(10);
+      const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+      // Atualiza a senha e APAGA o token (para não ser usado de novo)
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash: newPasswordHash,
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+        }
+      });
+
+      res.status(200).json({ message: 'Senha redefinida com sucesso! Você já pode fazer login.' });
+
+    } catch (error) {
+      console.error('Erro no resetPassword:', error);
       res.status(500).json({ error: 'Erro interno no servidor.' });
     }
   }
