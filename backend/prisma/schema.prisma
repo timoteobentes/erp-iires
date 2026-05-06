@@ -33,6 +33,10 @@ model Address {
   donorId      String?  @unique
   donor        Donor?   @relation(fields: [donorId], references: [id], onDelete: Cascade)
 
+  // Relação com Parceiros
+  partnerId    String?  @unique
+  partner      Partner? @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -119,4 +123,24 @@ model Donor {
   updatedAt     DateTime @updatedAt
 
   @@map("donors")
+}
+
+// TABELA DE PARCEIROS
+model Partner {
+  id              String   @id @default(uuid())
+  name            String   // Razão Social / Nome da Instituição
+  cnpj            String   @unique
+  contactName     String   // Nome do responsável/contato
+  email           String?
+  phone           String?
+  partnershipType String   // 'Financeiro', 'Serviços', 'Institucional'
+  status          String   @default("active")
+  
+  // Relação 1-1 com a tabela Address
+  address         Address?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("partners")
 }
