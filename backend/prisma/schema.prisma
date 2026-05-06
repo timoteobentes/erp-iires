@@ -29,6 +29,10 @@ model Address {
   volunteerId  String?  @unique
   volunteer    Volunteer? @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
 
+  // Relação com Doadores
+  donorId      String?  @unique
+  donor        Donor?   @relation(fields: [donorId], references: [id], onDelete: Cascade)
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -94,4 +98,25 @@ model Volunteer {
   updatedAt      DateTime  @updatedAt
 
   @@map("volunteers")
+}
+
+// TABELA DE DOADORES
+model Donor {
+  id            String   @id @default(uuid())
+  type          String   // 'PF' ou 'PJ'
+  name          String   // Nome ou Razão Social
+  document      String   @unique // CPF ou CNPJ
+  phone         String?
+  email         String?
+  recurrence    String   // 'Mensal', 'Anual', 'Única', etc
+  paymentMethod String   // 'PIX', 'Cartão', 'Transferência', etc
+  status        String   @default("active")
+  
+  // O link com a nossa tabela universal de Endereços
+  address       Address?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("donors")
 }
