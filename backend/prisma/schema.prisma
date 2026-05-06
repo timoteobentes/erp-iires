@@ -13,23 +13,24 @@ datasource db {
 
 // TABELA DE ENDEREÇOS
 model Address {
-  id           String @id @default(uuid())
+  id           String   @id @default(uuid())
   cep          String
-  street       String // Chamaremos logradouro de street
+  street       String   
   number       String
   neighborhood String
   city         String
   state        String
 
-  // Relação: A quem pertence este endereço?
-  // O @unique garante que é uma relação 1 para 1 com o Usuário
-  userId String? @unique
-  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Relação com Usuários (Equipe)
+  userId       String?  @unique
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // No futuro colocaremos aqui: volunteerId, donorId, partnerId...
+  // Relação com Voluntários
+  volunteerId  String?  @unique
+  volunteer    Volunteer? @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("addresses")
 }
@@ -60,4 +61,37 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+// TABELA DE VOLUNTÁRIOS
+model Volunteer {
+  id             String    @id @default(uuid())
+  name           String
+  birthDate      DateTime?
+  cpf            String    @unique
+  phone          String?
+  email          String?
+  profession     String?
+  
+  // Perfil e Engajamento
+  skills         String[]  // Array nativo no Postgres
+  availability   String?   // Manhã, Tarde, Noite, Flexível
+  
+  // Emergência e Jurídico
+  emergencyName  String?
+  emergencyPhone String?
+  acceptedTerms  Boolean   @default(false)
+  status         String    @default("active")
+  
+  // Métricas (Poderão ser atualizadas por triggers ou funções depois)
+  hoursDonated   Int       @default(0)
+  activeProjects Int       @default(0)
+  
+  // O link com a nossa tabela universal de Endereços
+  address        Address?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("volunteers")
 }

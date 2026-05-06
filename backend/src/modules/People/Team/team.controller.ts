@@ -140,39 +140,51 @@ export class TeamController {
       const { id }: any = req.params;
       const data = req.body;
 
-      const updatedMember = await prisma.user.update({
-        where: { id },
-        data: {
-          name: data.name,
-          email: data.email,
-          personalEmail: data.personal_email,
-          cpf: data.cpf,
-          phone: data.phone,
-          role: data.role,
-          level: data.level,
-          group: data.group,
-          // UPSERT: Atualiza se existir, Cria se não existir!
-          address: {
-            upsert: {
-              create: {
-                cep: data.cep,
-                street: data.address,
-                number: data.number,
-                neighborhood: data.neighborhood,
-                city: data.city,
-                state: data.state,
-              },
-              update: {
-                cep: data.cep,
-                street: data.address,
-                number: data.number,
-                neighborhood: data.neighborhood,
-                city: data.city,
-                state: data.state,
-              }
+      // Construímos o objeto de atualização dinamicamente para evitar 'undefined'
+      // com a regra exactOptionalPropertyTypes: true
+      const updateData: any = {};
+      
+      const fields = [
+        'name', 'email', 'phone', 'role', 'level', 'group'
+      ];
+
+      fields.forEach(field => {
+        if (data[field] !== undefined) {
+          updateData[field] = data[field];
+        }
+      });
+
+      // Mapeamento específico para campos com nomes diferentes no front/back
+      if (data.personal_email !== undefined) updateData.personalEmail = data.personal_email;
+      if (data.cpf !== undefined) updateData.cpf = data.cpf;
+
+      // Se houver algum campo de endereço, preparamos o upsert
+      if (data.cep || data.address || data.number || data.neighborhood || data.city || data.state) {
+        updateData.address = {
+          upsert: {
+            create: {
+              cep: data.cep,
+              street: data.address,
+              number: data.number,
+              neighborhood: data.neighborhood,
+              city: data.city,
+              state: data.state,
+            },
+            update: {
+              cep: data.cep,
+              street: data.address,
+              number: data.number,
+              neighborhood: data.neighborhood,
+              city: data.city,
+              state: data.state,
             }
           }
-        },
+        };
+      }
+
+      const updatedMember = await prisma.user.update({
+        where: { id },
+        data: updateData,
         include: { address: true }
       });
 
