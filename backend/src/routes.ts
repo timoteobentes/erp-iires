@@ -4,6 +4,7 @@ import teamRoutes from './modules/People/Team/team.routes.js';
 import volunteersRoutes from './modules/People/Volunteers/volunteers.routes.js';
 import donorsRoutes from './modules/People/Donors/donors.routes.js';
 import partnersRoutes from './modules/People/Partners/partners.routes.js';
+import projectsRoutes from './modules/Projects/projects.routes.js';
 
 const routes = Router();
 
@@ -12,5 +13,6 @@ routes.use('/team', teamRoutes);
 routes.use('/volunteers', volunteersRoutes);
 routes.use('/donors', donorsRoutes);
 routes.use('/partners', partnersRoutes);
+routes.use('/projects', projectsRoutes);
 
 export default routes;
