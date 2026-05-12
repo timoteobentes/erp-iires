@@ -124,6 +124,9 @@ model Donor {
   
   // O link com a nossa tabela universal de Endereços
   address       Address?
+  
+  // Transações
+  transactions  Transaction[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -148,6 +151,9 @@ model Partner {
   // Projetos apoiados
   projects        Project[]
 
+  // Transações
+  transactions    Transaction[]
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -170,8 +176,38 @@ model Project {
   volunteers  Volunteer[] // Relação N-N implícita
   partners    Partner[]   // Relação N-N implícita
   
+  // Transações
+  transactions Transaction[]
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("projects")
+}
+
+// TABELA DE TRANSAÇÕES FINANCEIRAS
+model Transaction {
+  id          String   @id @default(uuid())
+  title       String   // "Doação Mensal", "Compra de Materiais"
+  description String?
+  type        String   // 'INCOME' ou 'EXPENSE'
+  amount      Float
+  date        DateTime
+  status      String   @default("PAID") // 'PENDING', 'PAID', 'CANCELED'
+  category    String   // 'Doação', 'Infraestrutura', 'Marketing', 'Evento'
+  
+  // Relacionamentos Opcionais
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  
+  donorId     String?
+  donor       Donor?   @relation(fields: [donorId], references: [id])
+  
+  partnerId   String?
+  partner     Partner? @relation(fields: [partnerId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("transactions")
 }
