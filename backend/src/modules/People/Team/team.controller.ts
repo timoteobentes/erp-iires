@@ -2,65 +2,90 @@ import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../../../config/prisma.js';
 
+// Gera uma senha temporária aleatória com pelo menos 1 maiúscula, 1 número e 1 símbolo
+const generateTempPassword = (): string => {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const rand = (str: string) => str.charAt(Math.floor(Math.random() * str.length));
+
+  // Garante ao menos 1 de cada grupo
+  const base =
+    rand(upper) +
+    rand(lower) +
+    rand(digits) +
+    rand(lower) +
+    rand(upper) +
+    rand(digits);
+
+  // Embaralha
+  return 'IIRes@' + base.split('').sort(() => Math.random() - 0.5).join('');
+};
+
 export class TeamController {
-  
+
   // =========================================================
-  // 1. CRIAR NOVO MEMBRO DA EQUIPE (Com Nested Write)
+  // 1. CRIAR NOVO MEMBRO DA EQUIPE
   // =========================================================
   async create(req: Request, res: Response): Promise<void> {
     try {
       const data = req.body;
 
-      // Verifica se o email ou CPF já existem
-      const existingUser = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: data.email },
-            { cpf: data.cpf }
-          ]
-        }
-      });
-
-      if (existingUser) {
-        res.status(400).json({ error: 'Já existe um colaborador com este E-mail ou CPF.' });
+      // Verifica se o e-mail já existe
+      const existingByEmail = await prisma.user.findUnique({ where: { email: data.email } });
+      if (existingByEmail) {
+        res.status(400).json({ error: 'Já existe um colaborador com este e-mail.' });
         return;
       }
 
-      // Gera senha padrão "Mudar@123"
-      const salt = await bcrypt.genSalt(10);
-      const defaultPasswordHash = await bcrypt.hash('Mudar@123', salt);
+      // Verifica CPF apenas se for fornecido
+      if (data.cpf) {
+        const existingByCpf = await prisma.user.findFirst({ where: { cpf: data.cpf } });
+        if (existingByCpf) {
+          res.status(400).json({ error: 'Já existe um colaborador com este CPF.' });
+          return;
+        }
+      }
 
-      // A MÁGICA: Cria o Usuário e o Endereço simultaneamente!
+      // Senha temporária aleatória
+      const temporaryPassword = generateTempPassword();
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(temporaryPassword, salt);
+
+      // Só cria o endereço se o campo de logradouro foi preenchido
+      const hasAddress = !!(data.address?.trim());
+
       const newMember = await prisma.user.create({
         data: {
           name: data.name,
           email: data.email,
-          personalEmail: data.personal_email,
-          cpf: data.cpf,
-          phone: data.phone,
-          role: data.role,
-          level: data.level,
-          group: data.group,
-          passwordHash: defaultPasswordHash,
-          // Relação 1-para-1 com a tabela Address
-          address: {
-            create: {
-              cep: data.cep,
-              street: data.address, // Mapeia o 'address' do Front para o 'street' do Back
-              number: data.number,
-              neighborhood: data.neighborhood,
-              city: data.city,
-              state: data.state,
+          personalEmail: data.personal_email || null,
+          cpf: data.cpf || null,
+          phone: data.phone || null,
+          role: data.role || null,
+          level: data.level || null,
+          group: data.group || null,
+          passwordHash,
+          ...(hasAddress && {
+            address: {
+              create: {
+                cep: data.cep || '',
+                street: data.address,
+                number: data.number || '',
+                neighborhood: data.neighborhood || '',
+                city: data.city || '',
+                state: data.state || '',
+              }
             }
-          }
+          }),
         },
-        // Retorna o usuário já com os dados do endereço embutidos
         include: { address: true }
       });
 
-      res.status(201).json({ 
-        message: 'Colaborador cadastrado com sucesso! Senha padrão: Mudar@123', 
-        member: newMember 
+      res.status(201).json({
+        message: 'Colaborador cadastrado com sucesso!',
+        temporaryPassword, // retornado UMA VEZ para exibição ao admin
+        member: newMember
       });
     } catch (error) {
       console.error('Erro no Create Team:', error);
@@ -73,20 +98,19 @@ export class TeamController {
   // =========================================================
   async list(req: Request, res: Response): Promise<void> {
     try {
-      // Para listagem geral, não precisamos carregar o endereço inteiro (ganho de performance)
       const team = await prisma.user.findMany({
         select: {
-          id: true, 
-          name: true, 
-          email: true, 
-          role: true, 
-          level: true, 
-          group: true, 
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          level: true,
+          group: true,
           status: true
         },
         orderBy: { name: 'asc' }
       });
-      
+
       res.status(200).json(team);
     } catch (error) {
       console.error('Erro no List Team:', error);
@@ -95,28 +119,27 @@ export class TeamController {
   }
 
   // =========================================================
-  // 3. BUSCAR UM MEMBRO ESPECÍFICO (Com JOIN de Endereço)
+  // 3. BUSCAR UM MEMBRO ESPECÍFICO
   // =========================================================
   async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
-      
+
       const member = await prisma.user.findUnique({
         where: { id },
-        select: { 
-          id: true, 
-          name: true, 
-          email: true, 
-          personalEmail: true, 
-          cpf: true, 
-          phone: true, 
-          role: true, 
-          level: true, 
-          group: true, 
-          status: true, 
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          personalEmail: true,
+          cpf: true,
+          phone: true,
+          role: true,
+          level: true,
+          group: true,
+          status: true,
           createdAt: true,
-          // O Prisma faz o JOIN automático e traz o objeto address!
-          address: true 
+          address: true
         }
       });
 
@@ -133,50 +156,43 @@ export class TeamController {
   }
 
   // =========================================================
-  // 4. ATUALIZAR DADOS DO MEMBRO (Com UPSERT de Endereço)
+  // 4. ATUALIZAR DADOS DO MEMBRO
   // =========================================================
   async update(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
       const data = req.body;
 
-      // Construímos o objeto de atualização dinamicamente para evitar 'undefined'
-      // com a regra exactOptionalPropertyTypes: true
       const updateData: any = {};
-      
-      const fields = [
-        'name', 'email', 'phone', 'role', 'level', 'group'
-      ];
 
+      const fields = ['name', 'email', 'phone', 'role', 'level', 'group'];
       fields.forEach(field => {
-        if (data[field] !== undefined) {
-          updateData[field] = data[field];
-        }
+        if (data[field] !== undefined) updateData[field] = data[field] || null;
       });
 
-      // Mapeamento específico para campos com nomes diferentes no front/back
-      if (data.personal_email !== undefined) updateData.personalEmail = data.personal_email;
-      if (data.cpf !== undefined) updateData.cpf = data.cpf;
+      if (data.personal_email !== undefined) updateData.personalEmail = data.personal_email || null;
+      if (data.cpf !== undefined) updateData.cpf = data.cpf || null;
 
-      // Se houver algum campo de endereço, preparamos o upsert
-      if (data.cep || data.address || data.number || data.neighborhood || data.city || data.state) {
+      // Atualiza endereço somente se logradouro for fornecido
+      const hasAddress = !!(data.address?.trim());
+      if (hasAddress) {
         updateData.address = {
           upsert: {
             create: {
-              cep: data.cep,
+              cep: data.cep || '',
               street: data.address,
-              number: data.number,
-              neighborhood: data.neighborhood,
-              city: data.city,
-              state: data.state,
+              number: data.number || '',
+              neighborhood: data.neighborhood || '',
+              city: data.city || '',
+              state: data.state || '',
             },
             update: {
-              cep: data.cep,
+              cep: data.cep || '',
               street: data.address,
-              number: data.number,
-              neighborhood: data.neighborhood,
-              city: data.city,
-              state: data.state,
+              number: data.number || '',
+              neighborhood: data.neighborhood || '',
+              city: data.city || '',
+              state: data.state || '',
             }
           }
         };
@@ -202,7 +218,6 @@ export class TeamController {
     try {
       const { id }: any = req.params;
 
-      // Altera apenas o status, mantendo histórico de auditoria
       await prisma.user.update({
         where: { id },
         data: { status: 'inactive' }

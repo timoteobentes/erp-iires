@@ -36,7 +36,7 @@ export interface TeamMemberPayload {
   personal_email?: string;
   cpf?: string;
   phone?: string;
-  role: string;
+  role?: string;   // opcional — só nome, email e grupo são obrigatórios
   level?: string;
   group?: string;
   cep?: string;
@@ -62,7 +62,7 @@ export const teamService = {
     return response.data;
   },
 
-  async create(data: TeamMemberPayload): Promise<{ message: string; member: TeamMember }> {
+  async create(data: TeamMemberPayload): Promise<{ message: string; temporaryPassword: string; member: TeamMember }> {
     const response = await api.post('/team', data);
     return response.data;
   },
