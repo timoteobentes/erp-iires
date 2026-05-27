@@ -1,7 +1,10 @@
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Input, Button } from 'antd';
+import { Form, Input, Button, notification } from 'antd';
+import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { authService } from '../../Auth/services/auth.service';
 
 const resetPasswordSchema = z.object({
   password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
@@ -14,6 +17,11 @@ const resetPasswordSchema = z.object({
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
 export function ResetPasswordForm() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const token = searchParams.get('token');
+
   const { control, handleSubmit, formState: { errors } } = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
@@ -22,9 +30,26 @@ export function ResetPasswordForm() {
     }
   });
 
-  const onSubmit = (data: ResetPasswordFormValues) => {
-    console.log('Reset Password Data:', data);
-    // Submit logic here
+  const onSubmit = async (data: ResetPasswordFormValues) => {
+    if (!token) {
+      notification.error({ message: 'Erro', description: 'Token de recuperação não encontrado na URL.' });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await authService.resetPassword({ token, newPassword: data.password });
+      notification.success({ 
+        message: 'Sucesso', 
+        description: 'Senha redefinida com sucesso! Você já pode fazer login.' 
+      });
+      navigate('/login');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Erro ao redefinir a senha. Tente novamente.';
+      notification.error({ message: 'Erro', description: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -82,6 +107,7 @@ export function ResetPasswordForm() {
         <Button 
           type="primary"
           htmlType="submit"
+          loading={isLoading}
           className="w-full bg-[#026B11] hover:!bg-[#026B11]/80 active:!bg-[#026B11]/60 text-white text-[15px] font-medium h-auto py-2.5 rounded-lg transition-colors mt-4 border-none shadow-none"
         >
            Salvar nova senha

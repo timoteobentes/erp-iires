@@ -167,7 +167,46 @@ export class TransactionsController {
   }
 
   // =========================================================
-  // 6. DELETAR / CANCELAR TRANSAÇÃO
+  // 6. SUMÁRIO MENSAL (últimos 6 meses)
+  // =========================================================
+  async getMonthlySummary(req: Request, res: Response): Promise<void> {
+    try {
+      const now = new Date();
+      const monthsData = [];
+
+      for (let i = 5; i >= 0; i--) {
+        const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+        const label = start.toLocaleString('pt-BR', { month: 'short' });
+
+        const aggs = await prisma.transaction.groupBy({
+          by: ['type'],
+          where: {
+            date: { gte: start, lte: end },
+            status: { not: 'CANCELED' },
+          },
+          _sum: { amount: true },
+        });
+
+        let income = 0;
+        let expense = 0;
+        aggs.forEach((a: any) => {
+          if (a.type === 'INCOME') income = a._sum.amount || 0;
+          if (a.type === 'EXPENSE') expense = a._sum.amount || 0;
+        });
+
+        monthsData.push({ month: label, income, expense });
+      }
+
+      res.status(200).json(monthsData);
+    } catch (error) {
+      console.error('Erro no GetMonthlySummary Transaction:', error);
+      res.status(500).json({ error: 'Erro ao obter sumário mensal.' });
+    }
+  }
+
+  // =========================================================
+  // 7. DELETAR / CANCELAR TRANSAÇÃO
   // =========================================================
   async delete(req: Request, res: Response): Promise<void> {
     try {

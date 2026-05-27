@@ -1,7 +1,9 @@
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Input, Button } from 'antd';
+import { Form, Input, Button, notification } from 'antd';
+import { useState } from 'react';
+import { authService } from '../../Auth/services/auth.service';
 
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'E-mail é obrigatório').email('Formato de e-mail inválido'),
@@ -10,6 +12,8 @@ const forgotPasswordSchema = z.object({
 type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
 export function ForgotPasswordForm() {
+  const [isLoading, setIsLoading] = useState(false);
+
   const { control, handleSubmit, formState: { errors } } = useForm<ForgotPasswordFormValues>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
@@ -17,9 +21,20 @@ export function ForgotPasswordForm() {
     }
   });
 
-  const onSubmit = (data: ForgotPasswordFormValues) => {
-    console.log('Forgot Password Data:', data);
-    // Submit logic here
+  const onSubmit = async (data: ForgotPasswordFormValues) => {
+    try {
+      setIsLoading(true);
+      await authService.forgotPassword(data.email);
+      notification.success({ 
+        message: 'E-mail enviado', 
+        description: 'Verifique sua caixa de entrada para redefinir a senha.' 
+      });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Erro ao solicitar redefinição. Tente novamente.';
+      notification.error({ message: 'Erro', description: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -57,6 +72,7 @@ export function ForgotPasswordForm() {
         <Button 
           type="primary"
           htmlType="submit"
+          loading={isLoading}
           className="w-full bg-[#026B11] hover:!bg-[#026B11]/80 active:!bg-[#026B11]/60 text-white text-[15px] font-medium h-auto py-2.5 rounded-lg transition-colors mt-4 border-none shadow-none"
         >
            Enviar link de recuperação

@@ -13,5 +13,7 @@ authRoutes.post('/reset-password', authController.resetPassword);
 
 // Rotas PRIVADAS (Só funcionam com Token)
 authRoutes.get('/me', authMiddleware, authController.getMe);
+authRoutes.patch('/me', authMiddleware, authController.updateMe);
+authRoutes.patch('/change-password', authMiddleware, authController.changePassword);
 
 export default authRoutes;

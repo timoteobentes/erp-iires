@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import prisma from '../../config/prisma.js';
+import { MailService } from '../../shared/services/mail.service.js';
 
 export class AuthController {
 
@@ -174,8 +175,8 @@ export class AuthController {
       // Gera um token aleatório de 32 bytes em formato Hexadecimal
       const resetToken = crypto.randomBytes(32).toString('hex');
       
-      // Define a validade do token para 1 hora (3600000 ms)
-      const resetExpires = new Date(Date.now() + 3600000);
+      // Define a validade do token para 15 minutos (900000 ms)
+      const resetExpires = new Date(Date.now() + 900000);
 
       // Salva no banco
       await prisma.user.update({
@@ -186,12 +187,7 @@ export class AuthController {
         }
       });
 
-      // SIMULAÇÃO DE E-MAIL
-      // No futuro, aqui vai o código do Resend/SendGrid/Nodemailer
-      console.log('=============================================');
-      console.log(`📩 E-MAIL ENVIADO PARA: ${user.email}`);
-      console.log(`🔗 LINK: http://localhost:5173/reset-password?token=${resetToken}`);
-      console.log('=============================================');
+      await MailService.sendResetPasswordEmail(user.name, user.email, resetToken);
 
       res.status(200).json({ message: 'Se o e-mail existir, um link de recuperação será enviado.' });
 
@@ -201,7 +197,103 @@ export class AuthController {
     }
   }
 
-  // 5. REDEFINIR SENHA (Com Token)
+  // 5. ATUALIZAR DADOS DO PRÓPRIO PERFIL (updateMe)
+  async updateMe(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'Usuário não identificado.' });
+        return;
+      }
+
+      const { name, phone } = req.body;
+
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (phone !== undefined) updateData.phone = phone;
+
+      if (Object.keys(updateData).length === 0) {
+        res.status(400).json({ error: 'Nenhum campo para atualizar foi enviado.' });
+        return;
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          cpf: true,
+          role: true,
+          level: true,
+          group: true,
+          status: true,
+        },
+      });
+
+      res.status(200).json({ message: 'Perfil atualizado com sucesso!', user: updatedUser });
+    } catch (error) {
+      console.error('Erro no updateMe:', error);
+      res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+  }
+
+  // 6. ALTERAR PRÓPRIA SENHA (changePassword)
+  async changePassword(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'Usuário não identificado.' });
+        return;
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias.' });
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        res.status(400).json({ error: 'A nova senha deve ter no mínimo 6 caracteres.' });
+        return;
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+
+      if (!user) {
+        res.status(404).json({ error: 'Usuário não encontrado.' });
+        return;
+      }
+
+      // Verifica se a senha atual bate
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+
+      if (!isCurrentPasswordValid) {
+        res.status(401).json({ error: 'Senha atual incorreta.' });
+        return;
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash: newPasswordHash },
+      });
+
+      res.status(200).json({ message: 'Senha alterada com sucesso!' });
+    } catch (error) {
+      console.error('Erro no changePassword:', error);
+      res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+  }
+
+  // 7. REDEFINIR SENHA (Com Token)
   async resetPassword(req: Request, res: Response): Promise<void> {
     try {
       const { token, newPassword } = req.body;

@@ -211,3 +211,39 @@ model Transaction {
 
   @@map("transactions")
 }
+
+// TABELA DE AUDITORIA (LOGS DE SISTEMA)
+model SystemLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  userEmail    String?
+  userName     String?
+  action       String   // ex: CREATE, UPDATE, DELETE, LOGIN, SIGNUP, EXPORT, READ
+  module       String   // ex: AUTH, TEAM, PROJECTS, FINANCE, REPORTS
+  description  String   @db.Text
+  endpoint     String?
+  method       String?
+  ipAddress    String?
+  userAgent    String?
+  recordId     String?
+  tableName    String?
+  oldData      Json?
+  newData      Json?
+  success      Boolean  @default(true)
+  statusCode   Int?
+  responseTime Int?
+  errorMessage String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  @@index([recordId])
+  @@index([userId])
+  @@index([action])
+  @@index([module])
+  @@index([createdAt])
+  @@index([success])
+  @@index([tableName])
+  @@index([userEmail])
+  @@index([createdAt, userId])
+
+  @@map("logs_sistema")
+}

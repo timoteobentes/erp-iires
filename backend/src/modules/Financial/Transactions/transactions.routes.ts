@@ -12,6 +12,7 @@ transactionsRoutes.post('/', transactionsController.create);
 transactionsRoutes.get('/', transactionsController.list);
 // ATENÇÃO: a rota /summary deve vir antes de /:id para não ser interpretada como um ID
 transactionsRoutes.get('/summary', transactionsController.getSummary);
+transactionsRoutes.get('/monthly-summary', transactionsController.getMonthlySummary);
 transactionsRoutes.get('/:id', transactionsController.getById);
 transactionsRoutes.put('/:id', transactionsController.update);
 transactionsRoutes.delete('/:id', transactionsController.delete);

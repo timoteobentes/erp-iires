@@ -1,18 +1,12 @@
 import { useForm, Controller } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, Input, Button } from 'antd';
-import { useNavigate } from 'react-router-dom';
-
-const loginSchema = z.object({
-  email: z.string().min(1, 'E-mail é obrigatório').email('Formato de e-mail inválido'),
-  password: z.string().min(1, 'Senha é obrigatória'),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+import { loginSchema, type LoginFormValues } from '../../Auth/schemas/auth.schema';
+import { useAuth } from '../../Auth/hooks/useAuth';
 
 export function AuthForm() {
-  const navigate = useNavigate();
+  const { handleLogin, isLoading } = useAuth();
+
   const { control, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -22,9 +16,7 @@ export function AuthForm() {
   });
 
   const onSubmit = (data: LoginFormValues) => {
-    console.log('Login Data:', data);
-    // Submit logic here
-    navigate("/dashboard")
+    handleLogin(data);
   };
 
   return (
@@ -85,6 +77,7 @@ export function AuthForm() {
         <Button 
           type="primary"
           htmlType="submit"
+          loading={isLoading}
           className="w-full bg-[#026B11] hover:!bg-[#026B11]/80 active:!bg-[#026B11]/60 text-white text-[15px] font-medium h-auto py-2.5 rounded-lg transition-colors mt-4 border-none shadow-none"
         >
            Entrar

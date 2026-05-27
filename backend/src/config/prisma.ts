@@ -9,7 +9,12 @@ const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL;
 
 // 2. Criamos um Pool de conexões ultra-rápido nativo do Postgres
-const pool = new Pool({ connectionString });
+const pool = new Pool({ 
+  connectionString,
+  max: 15, // Limite de conexões simultâneas
+  idleTimeoutMillis: 30000, // Se a conexão ficar ociosa por 30s, ele a encerra
+  connectionTimeoutMillis: 10000, // Tempo máximo tentando conectar antes de dar erro (10s)
+});
 
 // 3. Passamos esse Pool para o Adaptador do Prisma
 const adapter = new PrismaPg(pool);

@@ -89,8 +89,108 @@ export class ReportsController {
 
         reportTitle = 'Relatório de Doadores';
 
+      // =========================================================
+      // DADOS: VOLUNTÁRIOS
+      // =========================================================
+      } else if (moduleType === 'volunteers') {
+        const volunteers = await prisma.volunteer.findMany({
+          where: filters || {},
+          orderBy: { name: 'asc' }
+        });
+
+        data = volunteers.map((v: any) => ({
+          name: v.name,
+          email: v.email || 'N/A',
+          phone: v.phone || 'N/A',
+          profession: v.profession || 'N/A',
+          skills: Array.isArray(v.skills) ? v.skills.join(', ') : 'N/A',
+          availability: v.availability || 'N/A',
+          status: v.status
+        }));
+
+        columns = [
+          { header: 'Nome', key: 'name', width: 30 },
+          { header: 'E-mail', key: 'email', width: 30 },
+          { header: 'Telefone', key: 'phone', width: 20 },
+          { header: 'Profissão', key: 'profession', width: 25 },
+          { header: 'Habilidades', key: 'skills', width: 40 },
+          { header: 'Disponibilidade', key: 'availability', width: 20 },
+          { header: 'Status', key: 'status', width: 15 }
+        ];
+
+        reportTitle = 'Relatório de Voluntários';
+
+      // =========================================================
+      // DADOS: PARCEIROS
+      // =========================================================
+      } else if (moduleType === 'partners') {
+        const partners = await prisma.partner.findMany({
+          where: filters || {},
+          orderBy: { name: 'asc' }
+        });
+
+        data = partners.map((p: any) => ({
+          name: p.name,
+          cnpj: p.cnpj || 'N/A',
+          partnershipType: p.partnershipType,
+          contactName: p.contactName || 'N/A',
+          email: p.email || 'N/A',
+          phone: p.phone || 'N/A',
+          status: p.status
+        }));
+
+        columns = [
+          { header: 'Nome', key: 'name', width: 30 },
+          { header: 'CNPJ/CPF', key: 'cnpj', width: 20 },
+          { header: 'Tipo', key: 'partnershipType', width: 15 },
+          { header: 'Contato', key: 'contactName', width: 25 },
+          { header: 'E-mail', key: 'email', width: 30 },
+          { header: 'Telefone', key: 'phone', width: 20 },
+          { header: 'Status', key: 'status', width: 15 }
+        ];
+
+        reportTitle = 'Relatório de Parceiros e Fornecedores';
+
+      // =========================================================
+      // DADOS: PROJETOS
+      // =========================================================
+      } else if (moduleType === 'projects') {
+        const projects = await prisma.project.findMany({
+          where: filters || {},
+          orderBy: { name: 'asc' },
+          include: {
+            manager: { select: { name: true } },
+            volunteers: { select: { name: true } },
+            partners: { select: { name: true } }
+          }
+        });
+
+        data = projects.map((p: any) => ({
+          name: p.name,
+          description: p.description || 'N/A',
+          status: p.status,
+          manager: p.manager?.name || 'N/A',
+          volunteers: p.volunteers.map((v: any) => v.name).join(', ') || 'N/A',
+          partners: p.partners.map((pt: any) => pt.name).join(', ') || 'N/A',
+          startDate: p.startDate ? p.startDate.toISOString().split('T')[0] : 'N/A',
+          endDate: p.endDate ? p.endDate.toISOString().split('T')[0] : 'N/A'
+        }));
+
+        columns = [
+          { header: 'Nome', key: 'name', width: 30 },
+          { header: 'Descrição', key: 'description', width: 40 },
+          { header: 'Status', key: 'status', width: 15 },
+          { header: 'Responsável', key: 'manager', width: 25 },
+          { header: 'Voluntários', key: 'volunteers', width: 40 },
+          { header: 'Parceiros', key: 'partners', width: 40 },
+          { header: 'Início', key: 'startDate', width: 15 },
+          { header: 'Término', key: 'endDate', width: 15 }
+        ];
+
+        reportTitle = 'Relatório de Projetos';
+
       } else {
-        res.status(400).json({ error: 'moduleType inválido. Use "financial" ou "donors".' });
+        res.status(400).json({ error: 'moduleType inválido. Use "financial", "donors", "volunteers", "partners" ou "projects".' });
         return;
       }
 

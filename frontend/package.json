@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^5.2.2",
     "antd": "^6.3.5",
     "consultar-cnpj": "^1.0.21",
+    "dotenv": "^17.4.2",
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.6",
     "lucide-react": "^1.8.0",

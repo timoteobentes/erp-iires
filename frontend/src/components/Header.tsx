@@ -1,12 +1,12 @@
 import React from 'react';
 import { Button, Input, Badge, Avatar, Dropdown, Divider, List } from 'antd';
-import { 
-  Search, 
-  Bell, 
-  Menu as MenuIcon, 
-  AlignLeft, 
-  User, 
-  Settings, 
+import {
+  Search,
+  Bell,
+  Menu as MenuIcon,
+  AlignLeft,
+  User,
+  Settings,
   LogOut,
   CheckCircle2,
   AlertCircle,
@@ -14,13 +14,15 @@ import {
   Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthContext } from '../modules/Auth/context/AuthContext';
+import { useAuth } from '../modules/Auth/hooks/useAuth';
 
 interface HeaderProps {
   collapsed: boolean;
   onMenuClick: () => void;
 }
 
-// Mock de Notificações seguindo o padrão da imagem
+// Mock de Notificações (será integrado ao backend no futuro)
 const notifications = [
   {
     id: '1',
@@ -53,30 +55,41 @@ const notifications = [
 
 const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
   const navigate = useNavigate();
+  const { user } = useAuthContext();
+  const { logout } = useAuth();
 
-  // Itens do Menu do Usuário (já criados anteriormente)
+  const displayName = user?.name ?? '—';
+  const displayRole = user?.role ?? user?.group ?? '';
+  const avatarSeed = encodeURIComponent(user?.name ?? 'default');
+
   const userMenuItems = [
     { key: 'profile', label: 'Meu Perfil', icon: <User size={16} />, onClick: () => navigate('/profile') },
     { key: 'settings', label: 'Configurações', icon: <Settings size={16} />, onClick: () => navigate('/settings') },
     { type: 'divider' as const },
-    { key: 'logout', label: 'Sair do Sistema', icon: <LogOut size={16} />, danger: true, onClick: () => navigate("/login") },
+    {
+      key: 'logout',
+      label: 'Sair do Sistema',
+      icon: <LogOut size={16} />,
+      danger: true,
+      onClick: logout,
+    },
   ];
 
   return (
     <header className="h-20 bg-white border-b border-dark-100 flex items-center justify-between px-6 sticky top-0 z-40 shadow-sm transition-all duration-300">
       <div className="flex items-center gap-4">
-        <Button 
-          type="text" 
-          icon={collapsed ? <MenuIcon size={22} className="text-dark-600" /> : <AlignLeft size={22} className="text-dark-600" />} 
+        <Button
+          type="text"
+          icon={collapsed ? <MenuIcon size={22} className="text-dark-600" /> : <AlignLeft size={22} className="text-dark-600" />}
           onClick={onMenuClick}
           className="hover:bg-background flex items-center justify-center rounded-lg h-10 w-10 transition-colors"
         />
-        
+
         <div className="hidden sm:flex items-center bg-background rounded-xl px-3 py-1 border border-transparent focus-within:border-secondary-300 transition-all">
           <Search size={18} className="text-dark-300" />
-          <Input 
-            placeholder="Buscar no ERP..." 
-            variant="borderless" 
+          <Input
+            placeholder="Buscar no ERP..."
+            variant="borderless"
             className="w-64 placeholder:text-dark-300 text-sm"
           />
         </div>
@@ -94,7 +107,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
                 <h3 className="text-base font-bold text-dark-900">Notificações</h3>
                 <span className="text-xs font-medium text-primary-600 cursor-pointer hover:underline">Marcar todas como lidas</span>
               </div>
-              
+
               <div className="max-h-[400px] overflow-auto custom-scrollbar">
                 <List
                   dataSource={notifications}
@@ -130,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
             </div>
           </Badge>
         </Dropdown>
-        
+
         {/* DROPDOWN DE USUÁRIO */}
         <Dropdown
           menu={{ items: userMenuItems }}
@@ -140,24 +153,24 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
           dropdownRender={(menu) => (
             <div className="bg-white rounded-xl shadow-card border border-dark-100 overflow-hidden">
               <div className="p-4 bg-dark-50/30">
-                <p className="text-sm font-bold text-dark-900 leading-none">Timóteo Bentes</p>
-                <p className="text-xs text-dark-400 mt-1">timoteo@iires.org</p>
+                <p className="text-sm font-bold text-dark-900 leading-none">{displayName}</p>
+                <p className="text-xs text-dark-400 mt-1">{user?.email}</p>
               </div>
               <Divider className="my-0" />
               {React.cloneElement(menu as React.ReactElement, {
-                style: { boxShadow: 'none', border: 'none', padding: '8px' } 
+                style: { boxShadow: 'none', border: 'none', padding: '8px' }
               })}
             </div>
           )}
         >
           <div className="flex items-center gap-3 cursor-pointer group p-1 rounded-xl hover:bg-background transition-all">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-dark-900 group-hover:text-primary-500 transition-colors leading-none">Timóteo Bentes</p>
-              <span className="text-xs text-dark-400">Analista TI Jr</span>
+              <p className="text-sm font-bold text-dark-900 group-hover:text-primary-500 transition-colors leading-none">{displayName}</p>
+              {displayRole && <span className="text-xs text-dark-400">{displayRole}</span>}
             </div>
-            <Avatar 
-              size={45} 
-              src="https://api.dicebear.com/7.x/avataaars/svg?seed=Timoteo" 
+            <Avatar
+              size={45}
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`}
               className="border-2 border-primary-100 group-hover:border-primary-500 transition-all shadow-sm"
             />
           </div>

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
-import nodemailer from 'nodemailer';
+import { MailService } from '../../shared/services/mail.service.js';
 
 export class ReportsService {
   
@@ -87,17 +87,7 @@ export class ReportsService {
     filename: string, 
     contentType: string
   ): Promise<void> {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: Number(process.env.SMTP_PORT) || 587,
-      auth: {
-        user: process.env.SMTP_USER || 'seu-usuario-ethereal',
-        pass: process.env.SMTP_PASS || 'sua-senha-ethereal'
-      }
-    });
-
-    await transporter.sendMail({
-      from: '"ERP ONG" <nao-responda@erp-ong.org>',
+    await MailService.sendMail({
       to,
       subject,
       text,

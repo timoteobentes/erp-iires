@@ -1,15 +1,17 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import { useAuthContext } from '../modules/Auth/context/AuthContext';
 
 export function ProtectedRoute() {
-  // Mock de autenticação temporário.
-  // Futuramente, substitua por um hook global: const { isAuthenticated } = useAuth();
-  const isAuthenticated = true; // Mude para false para testar o redirecionamento para o /login
+  const { isAuthenticated, isLoadingAuth } = useAuthContext();
+
+  // Aguarda a leitura do localStorage para não redirecionar antes de saber se está logado
+  if (isLoadingAuth) {
+    return null; // ou um componente de loading fullscreen se preferir
+  }
 
   if (!isAuthenticated) {
-    // Redireciona para o login caso não esteja autenticado
     return <Navigate to="/login" replace />;
   }
 
-  // Se estiver logado, renderiza as rotas filhas
   return <Outlet />;
 }

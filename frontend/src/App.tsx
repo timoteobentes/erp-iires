@@ -1,17 +1,16 @@
 import { BrowserRouter } from 'react-router-dom';
 import { AppRoutes } from './routes';
+import { notification } from 'antd';
+import { AuthProvider } from './modules/Auth/context/AuthContext';
+
+notification.config({ placement: 'bottomRight', duration: 4 });
 
 function App() {
   return (
     <BrowserRouter>
-      {/* Previsão para Futuros Providers Globais (Arquitetura Limpa) */}
-      {/* <ThemeProvider> */}
-        {/* <AuthProvider> */}
-          
-          <AppRoutes />
-          
-        {/* </AuthProvider> */}
-      {/* </ThemeProvider> */}
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

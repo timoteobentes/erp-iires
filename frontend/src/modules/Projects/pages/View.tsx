@@ -1,73 +1,133 @@
-import { Button, Card, Tag, Row, Col, Avatar, Divider } from 'antd';
-import { 
-  ArrowLeft, 
-  Edit, 
-  Calendar, 
-  DollarSign, 
-  Users, 
-  Target, 
-  Activity,
-  CheckCircle2,
-  Clock
+import { useState, useEffect } from 'react';
+import { Button, Card, Tag, Row, Col, Avatar, Divider, Skeleton, notification } from 'antd';
+import {
+  ArrowLeft,
+  Edit,
+  Calendar,
+  Users,
+  Target,
+  Clock,
+  MapPin,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { projectsService, type Project } from '../services/projects.service';
 
-// Função auxiliar para máscara
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+// ============================================================
+// HELPERS
+// ============================================================
+
+const statusConfig: Record<string, { text: string; classes: string }> = {
+  active: { text: 'Em Andamento', classes: 'bg-primary-50 text-primary-600 border-primary-200' },
+  planning: { text: 'Planejamento', classes: 'bg-blue-50 text-blue-600 border-blue-200' },
+  completed: { text: 'Concluído', classes: 'bg-secondary-50 text-secondary-600 border-secondary-200' },
+  blocked: { text: 'Bloqueado', classes: 'bg-red-50 text-red-600 border-red-200' },
+  draft: { text: 'Rascunho', classes: 'bg-dark-50 text-dark-400 border-dark-200' },
+  canceled: { text: 'Cancelado', classes: 'bg-dark-50 text-dark-400 border-dark-200' },
+};
+
+const formatDate = (iso: string | null | undefined) => {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('pt-BR');
 };
 
 export default function ProjectView() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
 
-  // Mock de dados enriquecido para o MVP
-  const project = {
-    id,
-    name: 'Inovação Verde',
-    status: 'active',
-    progress: 65,
-    manager: 'Ana Silva',
-    startDate: '10/01/2026',
-    endDate: '20/12/2026',
-    budget: 150000,
-    spent: 85000,
-    team: ['Ana', 'Beto', 'Carla', 'Diego'],
-    description: 'Projeto voltado para o desenvolvimento de hortas comunitárias sustentáveis nas periferias, com foco na capacitação de jovens em situação de vulnerabilidade. O objetivo é criar polos de agricultura urbana que gerem renda e segurança alimentar.',
-  };
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Cálculo de orçamento
-  const remainingBudget = project.budget - project.spent;
-  const budgetPercentage = Math.round((project.spent / project.budget) * 100);
+  // --------------------------------------------------------
+  // Busca o projeto pelo id
+  // --------------------------------------------------------
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchProject = async () => {
+      try {
+        setLoading(true);
+        const data = await projectsService.getById(id);
+        setProject(data);
+      } catch {
+        notification.error({ message: 'Erro', description: 'Projeto não encontrado.' });
+        navigate('/projects');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProject();
+  }, [id, navigate]);
+
+  // --------------------------------------------------------
+  // Skeleton
+  // --------------------------------------------------------
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6 pb-12">
+        <div className="flex items-center gap-4">
+          <Skeleton.Button active size="large" />
+          <Skeleton active paragraph={{ rows: 1 }} title={{ width: 280 }} />
+        </div>
+        <Row gutter={[24, 24]}>
+          {[1, 2, 3].map((i) => (
+            <Col xs={24} sm={8} key={i}>
+              <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '20px' }}>
+                <Skeleton active paragraph={{ rows: 1 }} />
+              </Card>
+            </Col>
+          ))}
+        </Row>
+        <Row gutter={[24, 24]}>
+          <Col xs={24} lg={16}>
+            <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
+              <Skeleton active paragraph={{ rows: 5 }} />
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '24px' }}>
+              <Skeleton active paragraph={{ rows: 5 }} />
+            </Card>
+          </Col>
+        </Row>
+      </div>
+    );
+  }
+
+  if (!project) return null;
+
+  const cfg = statusConfig[project.status] ?? { text: project.status, classes: 'bg-dark-50 text-dark-400 border-dark-200' };
+  const volunteers = project.volunteers ?? [];
+  const partners = project.partners ?? [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
-      {/* Header Premium da Página */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-in fade-in slide-in-from-left-4 duration-500">
         <div className="flex items-center gap-4">
-          <Button 
-            type="text" 
-            icon={<ArrowLeft size={20} />} 
+          <Button
+            type="text"
+            icon={<ArrowLeft size={20} />}
             onClick={() => navigate('/projects')}
             className="text-dark-400 hover:text-dark-900 bg-white shadow-sm border border-dark-100 rounded-xl h-10 w-10 flex items-center justify-center transition-all"
           />
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-dark-900 tracking-tight">{project.name}</h1>
-              <Tag className="px-3 py-1 rounded-full border font-bold text-xs uppercase tracking-wide bg-primary-50 text-primary-600 border-primary-200 m-0">
-                Em Andamento
+              <Tag className={`px-3 py-1 rounded-full border font-bold text-xs uppercase tracking-wide m-0 ${cfg.classes}`}>
+                {cfg.text}
               </Tag>
             </div>
             <p className="text-dark-400 text-sm mt-1 flex items-center gap-2">
-              <span className="font-medium text-dark-600">ID:</span> PRJ-{project.id?.padStart(4, '0')} 
+              <span className="font-medium text-dark-600">ID:</span> PRJ-{project.id.slice(-6).toUpperCase()}
               <Divider type="vertical" className="bg-dark-200" />
-              Liderado por <strong className="text-dark-700">{project.manager}</strong>
+              Liderado por <strong className="text-dark-700">{project.manager?.name ?? '—'}</strong>
             </p>
           </div>
         </div>
-        <Button 
-          type="primary" 
-          icon={<Edit size={18} />} 
+        <Button
+          type="primary"
+          icon={<Edit size={18} />}
           onClick={() => navigate(`/projects/${id}/edit`)}
           className="bg-dark-900 hover:!bg-dark-800 border-none rounded-xl font-bold shadow-soft flex items-center px-6"
         >
@@ -75,84 +135,86 @@ export default function ProjectView() {
         </Button>
       </div>
 
-      {/* Cards Superiores (Micro-Métricas) */}
+      {/* Métricas Rápidas */}
       <Row gutter={[24, 24]} className="animate-in fade-in slide-in-from-bottom-6 duration-500 delay-75">
-        {[
-          { title: 'Progresso Geral', value: `${project.progress}%`, sub: 'Concluído', icon: <Activity size={24} className="text-primary-600" />, bg: 'bg-primary-50' },
-          { title: 'Orçamento Total', value: formatCurrency(project.budget), sub: 'Aprovado', icon: <DollarSign size={24} className="text-secondary-600" />, bg: 'bg-secondary-50' },
-          { title: 'Valor Executado', value: formatCurrency(project.spent), sub: `${budgetPercentage}% consumido`, icon: <CheckCircle2 size={24} className="text-success" />, bg: 'bg-green-50' },
-          { title: 'Membros Ativos', value: project.team.length, sub: 'Na equipe', icon: <Users size={24} className="text-warning" />, bg: 'bg-yellow-50' },
-        ].map((stat, idx) => (
-          <Col xs={24} sm={12} lg={6} key={idx}>
-            <Card className="rounded-2xl shadow-soft border-dark-100 h-full p-1" bodyStyle={{ padding: '20px' }}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-dark-400 text-xs font-bold uppercase tracking-wider mb-1">{stat.title}</p>
-                  <h3 className="text-2xl font-bold text-dark-900 leading-tight">{stat.value}</h3>
-                  <p className="text-dark-400 text-xs mt-1 font-medium">{stat.sub}</p>
-                </div>
-                <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${stat.bg}`}>
-                  {stat.icon}
-                </div>
+        <Col xs={24} sm={8}>
+          <Card className="rounded-2xl shadow-soft border-dark-100 h-full p-1" bodyStyle={{ padding: '20px' }}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-dark-400 text-xs font-bold uppercase tracking-wider mb-1">Voluntários</p>
+                <h3 className="text-2xl font-bold text-dark-900 leading-tight">{volunteers.length}</h3>
+                <p className="text-dark-400 text-xs mt-1 font-medium">Na equipe</p>
               </div>
-            </Card>
-          </Col>
-        ))}
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-primary-50 text-primary-600">
+                <Users size={24} />
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card className="rounded-2xl shadow-soft border-dark-100 h-full p-1" bodyStyle={{ padding: '20px' }}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-dark-400 text-xs font-bold uppercase tracking-wider mb-1">Parceiros</p>
+                <h3 className="text-2xl font-bold text-dark-900 leading-tight">{partners.length}</h3>
+                <p className="text-dark-400 text-xs mt-1 font-medium">Institucionais</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-secondary-50 text-secondary-600">
+                <MapPin size={24} />
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card className="rounded-2xl shadow-soft border-dark-100 h-full p-1" bodyStyle={{ padding: '20px' }}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-dark-400 text-xs font-bold uppercase tracking-wider mb-1">Início</p>
+                <h3 className="text-xl font-bold text-dark-900 leading-tight">{formatDate(project.startDate)}</h3>
+                <p className="text-dark-400 text-xs mt-1 font-medium">
+                  Término: {formatDate(project.endDate)}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-dark-50 text-dark-600">
+                <Clock size={24} />
+              </div>
+            </div>
+          </Card>
+        </Col>
       </Row>
 
-      {/* Área Central: Detalhes e Lateral */}
+      {/* Grid Principal */}
       <Row gutter={[24, 24]} className="animate-in fade-in slide-in-from-bottom-8 duration-500 delay-150">
-        
-        {/* Coluna Esquerda (Principal) */}
+        {/* Coluna Esquerda */}
         <Col xs={24} lg={16} className="space-y-6">
-          
-          {/* Card de Descrição */}
           <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
             <div className="flex items-center gap-2 mb-4 text-dark-900">
               <Target size={20} className="text-primary-500" />
               <h2 className="text-lg font-bold">Objetivos e Descrição</h2>
             </div>
-            <p className="text-dark-600 leading-relaxed">
-              {project.description}
-            </p>
+            {project.description ? (
+              <p className="text-dark-600 leading-relaxed">{project.description}</p>
+            ) : (
+              <p className="text-dark-400 italic">Nenhuma descrição informada.</p>
+            )}
           </Card>
 
-          {/* Card de Saúde Financeira */}
-          <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
-            <div className="flex items-center gap-2 mb-6 text-dark-900">
-              <DollarSign size={20} className="text-secondary-500" />
-              <h2 className="text-lg font-bold">Saúde Financeira</h2>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex justify-between items-end">
-                <div>
-                  <span className="text-sm font-bold text-dark-900">{budgetPercentage}% Utilizado</span>
-                  <p className="text-xs text-dark-400 font-medium">Restam {formatCurrency(remainingBudget)}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs text-dark-400 font-medium uppercase tracking-wide">Orçamento Total</span>
-                  <p className="text-sm font-bold text-dark-900">{formatCurrency(project.budget)}</p>
-                </div>
+          {partners.length > 0 && (
+            <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
+              <h2 className="text-lg font-bold text-dark-900 mb-4">Parceiros e Fornecedores</h2>
+              <div className="flex flex-wrap gap-2">
+                {partners.map((p) => (
+                  <Tag key={p.id} className="rounded-full bg-secondary-50 text-secondary-700 border-secondary-200 font-bold px-3 py-1">
+                    {p.name}
+                  </Tag>
+                ))}
               </div>
-              
-              {/* Barra de Progresso Financeiro Premium */}
-              <div className="w-full bg-dark-100 rounded-full h-3 overflow-hidden shadow-inner">
-                <div 
-                  className={`h-full rounded-full transition-all duration-700 ease-out ${
-                    budgetPercentage > 90 ? 'bg-red-500' : budgetPercentage > 75 ? 'bg-warning' : 'bg-secondary-500'
-                  }`}
-                  style={{ width: `${budgetPercentage}%` }}
-                ></div>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          )}
         </Col>
 
-        {/* Coluna Direita (Sidebar Interna) */}
+        {/* Coluna Direita */}
         <Col xs={24} lg={8} className="space-y-6">
-          
-          {/* Card de Prazos */}
           <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '24px' }}>
             <h3 className="text-base font-bold text-dark-900 mb-4">Cronograma</h3>
             <div className="space-y-4">
@@ -162,7 +224,7 @@ export default function ProjectView() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-dark-400 uppercase tracking-wide">Data de Início</p>
-                  <p className="text-sm font-bold text-dark-900">{project.startDate}</p>
+                  <p className="text-sm font-bold text-dark-900">{formatDate(project.startDate)}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -171,33 +233,41 @@ export default function ProjectView() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-dark-400 uppercase tracking-wide">Previsão de Término</p>
-                  <p className="text-sm font-bold text-dark-900">{project.endDate}</p>
+                  <p className="text-sm font-bold text-dark-900">{formatDate(project.endDate)}</p>
                 </div>
               </div>
             </div>
           </Card>
 
-          {/* Card de Equipe */}
           <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '0' }}>
             <div className="p-5 border-b border-dark-100">
-              <h3 className="text-base font-bold text-dark-900">Equipe do Projeto</h3>
+              <h3 className="text-base font-bold text-dark-900">
+                Equipe ({volunteers.length} voluntários)
+              </h3>
             </div>
-            <div className="p-2 max-h-[300px] overflow-auto custom-scrollbar">
-              {project.team.map((member, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 hover:bg-dark-50 rounded-xl transition-colors cursor-pointer group">
-                  <Avatar src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member}`} size="large" className="border border-dark-100 shadow-sm" />
-                  <div>
-                    <p className="text-sm font-bold text-dark-900 group-hover:text-primary-600 transition-colors">{member}</p>
-                    <p className="text-xs text-dark-400 font-medium">{i === 0 ? 'Líder do Projeto' : 'Voluntário'}</p>
+            {volunteers.length === 0 ? (
+              <div className="p-5 text-center text-dark-400 text-sm">
+                Nenhum voluntário vinculado.
+              </div>
+            ) : (
+              <div className="p-2 max-h-[300px] overflow-auto">
+                {volunteers.map((v, i) => (
+                  <div key={v.id} className="flex items-center gap-3 p-3 hover:bg-dark-50 rounded-xl transition-colors cursor-pointer group">
+                    <Avatar
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(v.name)}&backgroundColor=0047AF`}
+                      size="large"
+                      className="border border-dark-100 shadow-sm"
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-dark-900 group-hover:text-primary-600 transition-colors">{v.name}</p>
+                      <p className="text-xs text-dark-400 font-medium">
+                        {i === 0 ? 'Voluntário líder' : 'Voluntário'}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            <div className="p-4 border-t border-dark-100 bg-dark-50 rounded-b-2xl">
-              <Button type="dashed" block className="rounded-xl border-dark-200 text-dark-600 font-medium hover:text-primary-600 hover:border-primary-400">
-                + Adicionar Membro
-              </Button>
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
         </Col>
       </Row>

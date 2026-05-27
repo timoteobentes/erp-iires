@@ -1,25 +1,11 @@
-import { useEffect } from 'react';
-import { Form, Input, Button, DatePicker, Select, Row, Col, Card } from 'antd';
+import { useEffect, useState } from 'react';
+import { Form, Input, Button, DatePicker, Select, Row, Col, Card, Skeleton, notification } from 'antd';
 import { ArrowLeft, Briefcase, Users, AlignLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-
-// Função utilitária para aplicar a máscara de moeda (Padrão AmaDev)
-const normalizeCurrency = (value: string | undefined) => {
-  if (!value) return '';
-  
-  // Remove tudo que não for número
-  const onlyNumbers = String(value).replace(/\D/g, '');
-  if (!onlyNumbers) return '';
-  
-  // Divide por 100 para criar os centavos automaticamente
-  const numberValue = Number(onlyNumbers) / 100;
-  
-  // Formata usando a API nativa do navegador para BRL
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(numberValue);
-};
+import dayjs from 'dayjs';
+import { projectsService } from '../services/projects.service';
+import { teamService } from '../../People/services/team.service';
+import { volunteersService } from '../../People/services/volunteers.service';
 
 export default function ProjectForm() {
   const navigate = useNavigate();
@@ -27,41 +13,135 @@ export default function ProjectForm() {
   const isEditing = !!id;
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    if (isEditing) {
-      form.setFieldsValue({
-        name: 'Inovação Verde',
-        manager: 'Ana Silva',
-        status: 'active',
-        // O valor do mock também já precisa vir com a formatação ou ser passado pelo normalizer
-        budget: 'R$ 150.000,00', 
-        team: ['ana', 'beto', 'carla'],
-        description: 'Projeto voltado para o desenvolvimento de hortas comunitárias sustentáveis...'
-      });
-    }
-  }, [isEditing, form]);
+  const [loadingData, setLoadingData] = useState(isEditing);
+  const [submitting, setSubmitting] = useState(false);
+  const [teamOptions, setTeamOptions] = useState<{ value: string; label: string }[]>([]);
+  const [volunteerOptions, setVolunteerOptions] = useState<{ value: string; label: string }[]>([]);
 
-  const onFinish = (values: any) => {
-    // Para enviar pro backend, você limpa a formatação e converte de volta para número
-    const rawBudget = Number(values.budget.replace(/\D/g, '')) / 100;
-    
-    const payload = {
-      ...values,
-      budget: rawBudget
+  // --------------------------------------------------------
+  // Carrega membros da equipe e voluntários para os selects
+  // --------------------------------------------------------
+  useEffect(() => {
+    const fetchSelectOptions = async () => {
+      try {
+        const [teamData, volunteersData] = await Promise.all([
+          teamService.list(),
+          volunteersService.list(),
+        ]);
+        setTeamOptions(
+          teamData
+            .filter((m) => m.status === 'active')
+            .map((m) => ({ value: m.id, label: m.name })),
+        );
+        setVolunteerOptions(
+          volunteersData
+            .filter((v) => v.status === 'active')
+            .map((v) => ({ value: v.id, label: v.name })),
+        );
+      } catch {
+        // silencia erro de carregamento de opções
+      }
     };
-    
-    console.log('Payload limpo pronto para o Prisma:', payload);
-    navigate('/projects');
+    fetchSelectOptions();
+  }, []);
+
+  // --------------------------------------------------------
+  // Modo edição: carrega dados do projeto
+  // --------------------------------------------------------
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchProject = async () => {
+      try {
+        setLoadingData(true);
+        const p = await projectsService.getById(id);
+
+        form.setFieldsValue({
+          name: p.name,
+          status: p.status,
+          description: p.description ?? '',
+          managerId: p.manager?.id ?? undefined,
+          startDate: p.startDate ? dayjs(p.startDate) : undefined,
+          endDate: p.endDate ? dayjs(p.endDate) : undefined,
+          volunteerIds: (p.volunteers ?? []).map((v) => v.id),
+          partnerIds: (p.partners ?? []).map((pt) => pt.id),
+        });
+      } catch {
+        notification.error({
+          message: 'Erro',
+          description: 'Não foi possível carregar os dados do projeto.',
+        });
+        navigate('/projects');
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchProject();
+  }, [id, form, navigate]);
+
+  // --------------------------------------------------------
+  // Submit
+  // --------------------------------------------------------
+  const onFinish = async (values: any) => {
+    const payload = {
+      name: values.name,
+      description: values.description || '',
+      status: values.status,
+      managerId: values.managerId || undefined,
+      startDate: values.startDate ? values.startDate.toISOString() : new Date().toISOString(),
+      endDate: values.endDate ? values.endDate.toISOString() : null,
+      volunteerIds: values.volunteerIds ?? [],
+      partnerIds: values.partnerIds ?? [],
+    };
+
+    try {
+      setSubmitting(true);
+      if (isEditing) {
+        await projectsService.update(id!, payload);
+        notification.success({ message: 'Sucesso', description: 'Projeto atualizado com sucesso!' });
+      } else {
+        await projectsService.create(payload);
+        notification.success({ message: 'Sucesso', description: 'Projeto criado com sucesso!' });
+      }
+      navigate('/projects');
+    } catch (error: any) {
+      const msg = error.response?.data?.error ?? 'Erro ao salvar projeto. Tente novamente.';
+      notification.error({ message: 'Erro', description: msg });
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  // --------------------------------------------------------
+  // Skeleton
+  // --------------------------------------------------------
+  if (loadingData) {
+    return (
+      <div className="max-w-5xl mx-auto space-y-6 pb-12">
+        <div className="flex items-center gap-4">
+          <Button
+            type="text"
+            icon={<ArrowLeft size={20} />}
+            onClick={() => navigate('/projects')}
+            className="rounded-xl border border-dark-100 bg-white h-10 w-10 flex items-center justify-center"
+          />
+          <Skeleton.Input active style={{ width: 280 }} />
+        </div>
+        <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
+          <Skeleton active paragraph={{ rows: 8 }} />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
-      {/* Header da Página */}
       <div className="flex items-center justify-between animate-in fade-in slide-in-from-left-4 duration-500">
         <div className="flex items-center gap-4">
-          <Button 
-            type="text" 
-            icon={<ArrowLeft size={20} />} 
+          <Button
+            type="text"
+            icon={<ArrowLeft size={20} />}
             onClick={() => navigate('/projects')}
             className="text-dark-400 hover:text-dark-900 bg-white shadow-sm border border-dark-100 rounded-xl h-10 w-10 flex items-center justify-center transition-all"
           />
@@ -74,12 +154,13 @@ export default function ProjectForm() {
         </div>
       </div>
 
-      <Form 
+      <Form
         form={form}
-        layout="vertical" 
+        layout="vertical"
         onFinish={onFinish}
         className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-500 delay-100"
         requiredMark={false}
+        initialValues={{ status: 'draft' }}
       >
         {/* BLOCO 1: Informações Básicas */}
         <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
@@ -87,107 +168,125 @@ export default function ProjectForm() {
             <Briefcase size={20} className="text-primary-500" />
             <h2 className="text-lg font-bold">Informações Básicas</h2>
           </div>
-          
+
           <Row gutter={24}>
             <Col span={24}>
-              <Form.Item 
-                label={<span className="text-dark-600 font-medium">Nome do Projeto</span>} 
-                name="name" 
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Nome do Projeto</span>}
+                name="name"
                 rules={[{ required: true, message: 'O nome do projeto é obrigatório' }]}
               >
-                <Input size="large" placeholder="Ex: Educação Sustentável" className="rounded-xl hover:border-secondary-400 focus:border-secondary-500" />
+                <Input
+                  size="large"
+                  placeholder="Ex: Educação Sustentável"
+                  className="rounded-xl hover:border-secondary-400 focus:border-secondary-500"
+                />
               </Form.Item>
             </Col>
-            
-            <Col xs={24} md={12}>
-              <Form.Item 
-                label={<span className="text-dark-600 font-medium">Status Inicial</span>} 
-                name="status" 
-                initialValue="draft"
+
+            <Col xs={24} md={8}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Status</span>}
+                name="status"
               >
                 <Select size="large" className="rounded-xl [&_.ant-select-selector]:!rounded-xl">
-                  <Select.Option value="active">
-                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary-500"></div> Em Andamento</div>
-                  </Select.Option>
                   <Select.Option value="draft">
-                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-dark-300"></div> Rascunho</div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-dark-300" /> Rascunho
+                    </div>
+                  </Select.Option>
+                  <Select.Option value="planning">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" /> Planejamento
+                    </div>
+                  </Select.Option>
+                  <Select.Option value="active">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-primary-500" /> Em Andamento
+                    </div>
                   </Select.Option>
                   <Select.Option value="completed">
-                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-secondary-500"></div> Concluído</div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-secondary-500" /> Concluído
+                    </div>
                   </Select.Option>
                   <Select.Option value="blocked">
-                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div> Bloqueado</div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-red-500" /> Bloqueado
+                    </div>
                   </Select.Option>
                 </Select>
               </Form.Item>
             </Col>
 
-            <Col xs={24} md={12}>
-              <Form.Item 
-                label={<span className="text-dark-600 font-medium">Data de Início (Previsão)</span>} 
+            <Col xs={24} md={8}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Data de Início</span>}
                 name="startDate"
               >
-                <DatePicker size="large" className="w-full rounded-xl hover:border-secondary-400 focus:border-secondary-500" format="DD/MM/YYYY" placeholder="Selecione a data" />
+                <DatePicker
+                  size="large"
+                  className="w-full rounded-xl hover:border-secondary-400 focus:border-secondary-500"
+                  format="DD/MM/YYYY"
+                  placeholder="Selecione a data"
+                />
+              </Form.Item>
+            </Col>
+
+            <Col xs={24} md={8}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Previsão de Término</span>}
+                name="endDate"
+              >
+                <DatePicker
+                  size="large"
+                  className="w-full rounded-xl hover:border-secondary-400 focus:border-secondary-500"
+                  format="DD/MM/YYYY"
+                  placeholder="Selecione a data"
+                />
               </Form.Item>
             </Col>
           </Row>
         </Card>
 
-        {/* BLOCO 2: Equipe e Orçamento */}
+        {/* BLOCO 2: Equipe */}
         <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2 text-dark-900">
-              <Users size={20} className="text-secondary-500" />
-              <h2 className="text-lg font-bold">Equipe e Recursos</h2>
-            </div>
+          <div className="flex items-center gap-2 mb-6 text-dark-900">
+            <Users size={20} className="text-secondary-500" />
+            <h2 className="text-lg font-bold">Equipe e Recursos</h2>
           </div>
 
           <Row gutter={24}>
             <Col xs={24} md={12}>
-              <Form.Item 
-                label={<span className="text-dark-600 font-medium">Responsável (Líder)</span>} 
-                name="manager" 
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Responsável (Líder)</span>}
+                name="managerId"
                 rules={[{ required: true, message: 'Selecione um responsável' }]}
               >
-                <Select size="large" placeholder="Selecione o líder do projeto" className="rounded-xl [&_.ant-select-selector]:!rounded-xl">
-                  <Select.Option value="Ana Silva">Ana Silva</Select.Option>
-                  <Select.Option value="Carlos Mendes">Carlos Mendes</Select.Option>
-                  <Select.Option value="Mariana Costa">Mariana Costa</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            
-            <Col xs={24} md={12}>
-              <Form.Item 
-                label={<span className="text-dark-600 font-medium">Orçamento Previsto</span>} 
-                name="budget"
-                normalize={normalizeCurrency} // Aplica a máscara em tempo real
-              >
-                <Input 
-                  size="large" 
-                  placeholder="R$ 0,00" 
-                  className="rounded-xl font-medium text-dark-900 hover:border-secondary-400 focus:border-secondary-500" 
+                <Select
+                  size="large"
+                  placeholder="Selecione o líder do projeto"
+                  className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
+                  showSearch
+                  optionFilterProp="label"
+                  options={teamOptions}
                 />
               </Form.Item>
             </Col>
 
             <Col span={24}>
-              <Form.Item 
-                label={<span className="text-dark-600 font-medium">Membros da Equipe</span>} 
-                name="team"
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Voluntários do Projeto</span>}
+                name="volunteerIds"
               >
-                <Select 
-                  mode="multiple" 
-                  size="large" 
-                  placeholder="Adicione membros ao projeto" 
+                <Select
+                  mode="multiple"
+                  size="large"
+                  placeholder="Adicione voluntários ao projeto"
                   className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
-                  options={[
-                    { value: 'ana', label: 'Ana Silva' },
-                    { value: 'beto', label: 'Beto Gomes' },
-                    { value: 'carla', label: 'Carla Dias' },
-                    { value: 'diana', label: 'Diana Prince' },
-                    { value: 'joao', label: 'João Pedro' },
-                  ]}
+                  showSearch
+                  optionFilterProp="label"
+                  options={volunteerOptions}
                 />
               </Form.Item>
             </Col>
@@ -203,33 +302,34 @@ export default function ProjectForm() {
 
           <Row>
             <Col span={24}>
-              <Form.Item 
-                label={<span className="text-dark-600 font-medium">Descrição e Objetivos</span>} 
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Descrição e Objetivos</span>}
                 name="description"
               >
-                <Input.TextArea 
-                  rows={5} 
-                  className="rounded-xl hover:border-secondary-400 focus:border-secondary-500 resize-none p-3" 
-                  placeholder="Descreva o impacto esperado, os beneficiários e o escopo geral deste projeto..." 
+                <Input.TextArea
+                  rows={5}
+                  className="rounded-xl hover:border-secondary-400 focus:border-secondary-500 resize-none p-3"
+                  placeholder="Descreva o impacto esperado, os beneficiários e o escopo geral deste projeto..."
                 />
               </Form.Item>
             </Col>
           </Row>
         </Card>
 
-        {/* Barra de Ações (Footer) */}
+        {/* Footer */}
         <div className="flex items-center justify-end gap-4 pt-4">
-          <Button 
-            size="large" 
-            onClick={() => navigate('/projects')} 
+          <Button
+            size="large"
+            onClick={() => navigate('/projects')}
             className="rounded-xl font-medium text-dark-600 border-dark-200 hover:text-dark-900 hover:bg-dark-50"
           >
             Cancelar
           </Button>
-          <Button 
-            size="large" 
-            type="primary" 
-            htmlType="submit" 
+          <Button
+            size="large"
+            type="primary"
+            htmlType="submit"
+            loading={submitting}
             className="bg-primary-500 hover:!bg-primary-600 rounded-xl font-bold shadow-soft flex items-center"
           >
             {isEditing ? 'Salvar Alterações' : 'Criar Projeto'}

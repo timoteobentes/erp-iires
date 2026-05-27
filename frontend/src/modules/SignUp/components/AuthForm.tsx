@@ -1,17 +1,12 @@
 import { useForm, Controller } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, Input, Button } from 'antd';
-
-const signupSchema = z.object({
-  name: z.string().min(1, 'Nome é obrigatório'),
-  email: z.string().min(1, 'E-mail é obrigatório').email('Formato de e-mail inválido'),
-  password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
-});
-
-type SignupFormValues = z.infer<typeof signupSchema>;
+import { signupSchema, type SignupFormValues } from '../../Auth/schemas/auth.schema';
+import { useAuth } from '../../Auth/hooks/useAuth';
 
 export function AuthForm() {
+  const { handleSignUp, isLoading } = useAuth();
+
   const { control, handleSubmit, formState: { errors } } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -22,8 +17,7 @@ export function AuthForm() {
   });
 
   const onSubmit = (data: SignupFormValues) => {
-    console.log('Signup Data:', data);
-    // Submit logic here
+    handleSignUp(data);
   };
 
   return (
@@ -103,6 +97,7 @@ export function AuthForm() {
         <Button 
           type="primary"
           htmlType="submit"
+          loading={isLoading}
           className="w-full bg-[#026B11] hover:!bg-[#026B11]/80 active:!bg-[#026B11]/60 text-white text-[15px] font-medium h-auto py-2.5 rounded-lg transition-colors mt-4 border-none shadow-none"
         >
            Cadastrar
