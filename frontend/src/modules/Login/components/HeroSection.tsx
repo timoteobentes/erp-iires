@@ -1,5 +1,3 @@
-import React from 'react';
-
 export function HeroSection() {
   return (
     <div className="hidden lg:flex flex-col justify-center relative w-full h-full from-[#026B11] to-[#2B2E4A] bg-gradient-to-b text-white overflow-hidden p-12 xl:p-24">

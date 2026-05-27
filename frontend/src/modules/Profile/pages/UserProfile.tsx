@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect } from 'react';
 import { Card, Row, Col, Button, Input, Form, Divider, Switch, message, Avatar, Skeleton, notification } from 'antd';
 import {
   User,

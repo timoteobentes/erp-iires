@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Tag, Row, Col, Divider, Skeleton, notification } from 'antd';
-import { ArrowLeft, Edit, Calendar, User, Tag as TagIcon, FileText, Briefcase } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, User, Tag as TagIcon, Briefcase } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { transactionsService, type Transaction } from '../../services/transactions.service';
 

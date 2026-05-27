@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from 'react';
 import { Row, Col, Card, Button, Table, Tag, Skeleton } from 'antd';
 import {
@@ -19,11 +20,11 @@ import { transactionsService, type Transaction, type MonthlySummary } from '../s
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-const statusMap: Record<string, { text: string; color: string }> = {
-  PAID: { text: 'Pago/Recebido', color: 'text-primary-600' },
-  PENDING: { text: 'Pendente', color: 'text-warning' },
-  CANCELED: { text: 'Cancelado', color: 'text-dark-400' },
-};
+// const statusMap: Record<string, { text: string; color: string }> = {
+//   PAID: { text: 'Pago/Recebido', color: 'text-primary-600' },
+//   PENDING: { text: 'Pendente', color: 'text-warning' },
+//   CANCELED: { text: 'Cancelado', color: 'text-dark-400' },
+// };
 
 export default function FinanceOverview() {
   const navigate = useNavigate();

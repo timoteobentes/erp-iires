@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from 'react';
 import { Button, Input, Badge, Avatar, Dropdown, Divider, List } from 'antd';
 import {
@@ -157,7 +158,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
                 <p className="text-xs text-dark-400 mt-1">{user?.email}</p>
               </div>
               <Divider className="my-0" />
-              {React.cloneElement(menu as React.ReactElement, {
+              {React.cloneElement(menu as React.ReactElement<any>, {
                 style: { boxShadow: 'none', border: 'none', padding: '8px' }
               })}
             </div>
