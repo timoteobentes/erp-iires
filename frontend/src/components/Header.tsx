@@ -17,6 +17,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../modules/Auth/context/AuthContext';
 import { useAuth } from '../modules/Auth/hooks/useAuth';
+import { getAvatarUrl } from '../utils/avatar';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -61,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
 
   const displayName = user?.name ?? '—';
   const displayRole = user?.role ?? user?.group ?? '';
-  const avatarSeed = encodeURIComponent(user?.name ?? 'default');
+  const avatarUrl = getAvatarUrl(user?.avatarConfig, user?.name ?? 'default');
 
   const userMenuItems = [
     { key: 'profile', label: 'Meu Perfil', icon: <User size={16} />, onClick: () => navigate('/profile') },
@@ -171,7 +172,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
             </div>
             <Avatar
               size={45}
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`}
+              src={avatarUrl}
               className="border-2 border-primary-100 group-hover:border-primary-500 transition-all shadow-sm"
             />
           </div>

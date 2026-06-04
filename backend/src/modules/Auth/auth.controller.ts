@@ -133,7 +133,6 @@ export class AuthController {
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
-          // Usamos o select para garantir que a SENHA NUNCA seja retornada!
           id: true,
           name: true,
           email: true,
@@ -143,6 +142,7 @@ export class AuthController {
           level: true,
           group: true,
           status: true,
+          avatarConfig: true,
           createdAt: true
         }
       });
@@ -213,11 +213,12 @@ export class AuthController {
         return;
       }
 
-      const { name, phone } = req.body;
+      const { name, phone, avatarConfig } = req.body;
 
       const updateData: any = {};
       if (name !== undefined) updateData.name = name;
       if (phone !== undefined) updateData.phone = phone;
+      if (avatarConfig !== undefined) updateData.avatarConfig = avatarConfig;
 
       if (Object.keys(updateData).length === 0) {
         res.status(400).json({ error: 'Nenhum campo para atualizar foi enviado.' });
@@ -237,6 +238,7 @@ export class AuthController {
           level: true,
           group: true,
           status: true,
+          avatarConfig: true,
         },
       });
 

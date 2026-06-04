@@ -14,6 +14,8 @@ import {
 import { useAuthContext } from '../../Auth/context/AuthContext';
 import { authService } from '../../Auth/services/auth.service';
 import { normalizePhone } from '../../../utils/masks';
+import AvatarEditor from '../../../components/AvatarEditor';
+import { getAvatarUrl } from '../../../utils/avatar';
 
 export default function UserProfile() {
   const { user, updateUser } = useAuthContext();
@@ -23,6 +25,7 @@ export default function UserProfile() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSavingPersonal, setIsSavingPersonal] = useState(false);
   const [isSavingSecurity, setIsSavingSecurity] = useState(false);
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
 
   // Busca dados frescos do perfil ao montar
   useEffect(() => {
@@ -97,13 +100,25 @@ export default function UserProfile() {
     }
   };
 
+  const handleSaveAvatar = async (avatarConfig: string) => {
+    try {
+      const response = await authService.updateMe({ avatarConfig });
+      updateUser(response.user);
+      notification.success({ message: 'Avatar salvo com sucesso!' });
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Erro ao salvar avatar. Tente novamente.';
+      notification.error({ message: 'Erro', description: msg });
+      throw error;
+    }
+  };
+
   const menuItems = [
     { key: 'personal', icon: <User size={20} />, label: 'Dados Pessoais' },
     { key: 'security', icon: <Lock size={20} />, label: 'Segurança & Senha' },
     { key: 'notifications', icon: <Bell size={20} />, label: 'Preferências' },
   ];
 
-  const avatarSeed = encodeURIComponent(user?.name ?? 'default');
+  const avatarUrl = getAvatarUrl(user?.avatarConfig, user?.name ?? 'default');
   const displayRole = user?.role ?? user?.group ?? '—';
 
   return (
@@ -126,10 +141,14 @@ export default function UserProfile() {
               {isLoadingProfile ? (
                 <Skeleton.Avatar active size={100} className="mb-4" />
               ) : (
-                <div className="relative mb-4 group cursor-pointer">
+                <div
+                  className="relative mb-4 group cursor-pointer"
+                  onClick={() => setAvatarEditorOpen(true)}
+                  title="Clique para editar o avatar"
+                >
                   <Avatar
                     size={100}
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`}
+                    src={avatarUrl}
                     className="border-4 border-white shadow-md bg-primary-50"
                   />
                   <div className="absolute inset-0 bg-dark-900/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -343,6 +362,14 @@ export default function UserProfile() {
           </Card>
         </Col>
       </Row>
+
+      <AvatarEditor
+        open={avatarEditorOpen}
+        currentConfig={user?.avatarConfig}
+        userSeed={user?.name ?? 'default'}
+        onClose={() => setAvatarEditorOpen(false)}
+        onSave={handleSaveAvatar}
+      />
     </div>
   );
 }

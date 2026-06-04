@@ -14,6 +14,7 @@ export interface AuthUser {
   level?: string | null;
   group?: string | null;
   status: string;
+  avatarConfig?: string | null;
 }
 
 interface AuthContextData {

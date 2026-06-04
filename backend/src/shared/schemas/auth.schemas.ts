@@ -28,6 +28,7 @@ export const changePasswordSchema = z.object({
 export const updateMeSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres.').optional(),
   phone: z.string().optional(),
+  avatarConfig: z.string().optional(),
 });
 
 export const refreshTokenSchema = z.object({

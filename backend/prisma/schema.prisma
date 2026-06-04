@@ -69,6 +69,9 @@ model User {
   refreshToken        String?   @unique
   refreshTokenExpires DateTime?
 
+  // CONFIGURAÇÃO DO AVATAR (JSON com as opções escolhidas no editor)
+  avatarConfig        String?
+
   // Projetos Gerenciados
   managedProjects Project[]
 

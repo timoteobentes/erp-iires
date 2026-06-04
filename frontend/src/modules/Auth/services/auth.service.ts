@@ -17,7 +17,7 @@ export const authService = {
     return response.data;
   },
 
-  async updateMe(data: { name?: string; phone?: string }) {
+  async updateMe(data: { name?: string; phone?: string; avatarConfig?: string }) {
     const response = await api.patch('/auth/me', data);
     return response.data as { message: string; user: any };
   },
