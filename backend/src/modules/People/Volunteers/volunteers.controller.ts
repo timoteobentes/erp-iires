@@ -60,9 +60,32 @@ export class VolunteersController {
   // 2. LISTAR VOLUNTÁRIOS
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const volunteers = await prisma.volunteer.findMany({
-        orderBy: { name: 'asc' }
-      });
+      const { search, status, availability, page, limit = '50' } = req.query as Record<string, string>;
+
+      const where: any = {};
+      if (status) where.status = status;
+      if (availability) where.availability = availability;
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { profession: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      if (page) {
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, parseInt(limit));
+        const skip = (pageNum - 1) * limitNum;
+        const [data, total] = await Promise.all([
+          prisma.volunteer.findMany({ where, orderBy: { name: 'asc' }, skip, take: limitNum }),
+          prisma.volunteer.count({ where }),
+        ]);
+        res.status(200).json({ data, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+        return;
+      }
+
+      const volunteers = await prisma.volunteer.findMany({ where, orderBy: { name: 'asc' } });
       res.status(200).json(volunteers);
     } catch (error) {
       res.status(500).json({ error: 'Erro ao listar voluntários.' });

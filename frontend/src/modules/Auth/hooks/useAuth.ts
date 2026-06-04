@@ -15,8 +15,8 @@ export function useAuth() {
       setIsLoading(true);
       const response = await authService.signIn(data);
 
-      // Persiste token e user no contexto global (e localStorage)
-      login(response.token, response.user);
+      // Persiste token, refreshToken e user no contexto global (e localStorage)
+      login(response.token, response.user, response.refreshToken);
 
       notification.success({ message: 'Sucesso', description: 'Login realizado com sucesso!' });
       navigate('/dashboard');
@@ -48,7 +48,8 @@ export function useAuth() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.logout();
     logout();
     navigate('/login');
   };

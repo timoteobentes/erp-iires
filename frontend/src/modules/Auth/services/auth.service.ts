@@ -4,7 +4,7 @@ import type { LoginFormValues, SignupFormValues } from '../schemas/auth.schema';
 export const authService = {
   async signIn(data: LoginFormValues) {
     const response = await api.post('/auth/login', data);
-    return response.data as { token: string; user: any; message: string };
+    return response.data as { token: string; refreshToken: string; user: any; message: string };
   },
 
   async signUp(data: SignupFormValues) {
@@ -35,5 +35,13 @@ export const authService = {
   async resetPassword(data: { token: string; newPassword: string }) {
     const response = await api.post('/auth/reset-password', data);
     return response.data;
+  },
+
+  async logout() {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // ignora erro de rede — o logout local já acontece
+    }
   },
 };

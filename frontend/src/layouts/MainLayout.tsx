@@ -3,11 +3,16 @@ import { Layout } from 'antd';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import { useInactivityTimer } from '../hooks/useInactivityTimer';
+import { useAuth } from '../modules/Auth/hooks/useAuth';
 
 const { Content } = Layout;
 
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const { logout } = useAuth();
+
+  useInactivityTimer(logout);
 
   return (
     // h-screen e overflow-hidden travam a tela inteira [cite: 58, 70]

@@ -65,6 +65,10 @@ model User {
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
 
+  // CAMPOS PARA REFRESH TOKEN
+  refreshToken        String?   @unique
+  refreshTokenExpires DateTime?
+
   // Projetos Gerenciados
   managedProjects Project[]
 
@@ -168,17 +172,19 @@ model Project {
   startDate   DateTime
   endDate     DateTime?
   status      String   @default("planning") // planning, active, completed, canceled
-  
+  budget      Float?
+  progress    Int      @default(0) // 0-100 (percentual de conclusão)
+
   // Relações
   managerId   String
   manager     User     @relation(fields: [managerId], references: [id])
-  
+
   volunteers  Volunteer[] // Relação N-N implícita
   partners    Partner[]   // Relação N-N implícita
-  
+
   // Transações
   transactions Transaction[]
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -56,9 +56,32 @@ export class PartnersController {
   // =========================================================
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const partners = await prisma.partner.findMany({
-        orderBy: { name: 'asc' }
-      });
+      const { search, status, partnershipType, page, limit = '50' } = req.query as Record<string, string>;
+
+      const where: any = {};
+      if (status) where.status = status;
+      if (partnershipType) where.partnershipType = partnershipType;
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { contactName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      if (page) {
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, parseInt(limit));
+        const skip = (pageNum - 1) * limitNum;
+        const [data, total] = await Promise.all([
+          prisma.partner.findMany({ where, orderBy: { name: 'asc' }, skip, take: limitNum }),
+          prisma.partner.count({ where }),
+        ]);
+        res.status(200).json({ data, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+        return;
+      }
+
+      const partners = await prisma.partner.findMany({ where, orderBy: { name: 'asc' } });
       res.status(200).json(partners);
     } catch (error) {
       console.error('Erro no List Partners:', error);

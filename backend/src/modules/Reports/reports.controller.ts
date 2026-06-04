@@ -20,12 +20,22 @@ export class ReportsController {
       let columns: any[] = [];
       let reportTitle = '';
 
+      // Constrói where seguro a partir dos filtros
+      const buildWhere = (filters?: Record<string, any>, hasDate = false) => {
+        const where: any = {};
+        if (filters?.status && filters.status !== 'all') where.status = filters.status;
+        if (hasDate && filters?.startDate && filters?.endDate) {
+          where.date = { gte: new Date(filters.startDate), lte: new Date(filters.endDate) };
+        }
+        return where;
+      };
+
       // =========================================================
       // DADOS: FINANCEIRO
       // =========================================================
       if (moduleType === 'financial') {
         const transactions = await prisma.transaction.findMany({
-          where: filters || {},
+          where: buildWhere(filters, true),
           orderBy: { date: 'desc' },
           include: { project: true, donor: true, partner: true }
         });
@@ -62,7 +72,7 @@ export class ReportsController {
       // =========================================================
       } else if (moduleType === 'donors') {
         const donors = await prisma.donor.findMany({
-          where: filters || {},
+          where: buildWhere(filters),
           orderBy: { name: 'asc' }
         });
 
@@ -94,7 +104,7 @@ export class ReportsController {
       // =========================================================
       } else if (moduleType === 'volunteers') {
         const volunteers = await prisma.volunteer.findMany({
-          where: filters || {},
+          where: buildWhere(filters),
           orderBy: { name: 'asc' }
         });
 
@@ -125,7 +135,7 @@ export class ReportsController {
       // =========================================================
       } else if (moduleType === 'partners') {
         const partners = await prisma.partner.findMany({
-          where: filters || {},
+          where: buildWhere(filters),
           orderBy: { name: 'asc' }
         });
 
@@ -156,7 +166,7 @@ export class ReportsController {
       // =========================================================
       } else if (moduleType === 'projects') {
         const projects = await prisma.project.findMany({
-          where: filters || {},
+          where: buildWhere(filters),
           orderBy: { name: 'asc' },
           include: {
             manager: { select: { name: true } },

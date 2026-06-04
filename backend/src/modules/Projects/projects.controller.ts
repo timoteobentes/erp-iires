@@ -17,6 +17,8 @@ export class ProjectsController {
           startDate: new Date(data.startDate),
           endDate: data.endDate ? new Date(data.endDate) : null,
           status: data.status || 'planning',
+          budget: data.budget ? Number(data.budget) : null,
+          progress: data.progress !== undefined ? Math.min(100, Math.max(0, Number(data.progress))) : 0,
           
           // Relação 1-N (Manager)
           manager: {
@@ -56,23 +58,36 @@ export class ProjectsController {
   // =========================================================
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const projects = await prisma.project.findMany({
-        orderBy: { name: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          startDate: true,
-          endDate: true,
-          status: true,
-          manager: {
-            select: {
-              id: true,
-              name: true
-            }
-          }
-        }
-      });
+      const { search, status, page, limit = '50' } = req.query as Record<string, string>;
+
+      const where: any = {};
+      if (status) where.status = status;
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const select = {
+        id: true, name: true, description: true, startDate: true, endDate: true, status: true,
+        budget: true, progress: true,
+        manager: { select: { id: true, name: true } },
+      };
+
+      if (page) {
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, parseInt(limit));
+        const skip = (pageNum - 1) * limitNum;
+        const [data, total] = await Promise.all([
+          prisma.project.findMany({ where, select, orderBy: { name: 'asc' }, skip, take: limitNum }),
+          prisma.project.count({ where }),
+        ]);
+        res.status(200).json({ data, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+        return;
+      }
+
+      const projects = await prisma.project.findMany({ where, select, orderBy: { name: 'asc' } });
       res.status(200).json(projects);
     } catch (error) {
       console.error('Erro no List Projects:', error);
@@ -125,6 +140,9 @@ export class ProjectsController {
           updateData[field] = data[field];
         }
       });
+
+      if (data.budget !== undefined) updateData.budget = data.budget !== null ? Number(data.budget) : null;
+      if (data.progress !== undefined) updateData.progress = Math.min(100, Math.max(0, Number(data.progress)));
 
       if (data.startDate !== undefined) {
         updateData.startDate = new Date(data.startDate);

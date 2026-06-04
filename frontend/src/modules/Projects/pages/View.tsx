@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, Card, Tag, Row, Col, Avatar, Divider, Skeleton, notification } from 'antd';
+import { Button, Card, Tag, Row, Col, Avatar, Divider, Skeleton, notification, Progress } from 'antd';
 import {
   ArrowLeft,
   Edit,
@@ -8,6 +8,7 @@ import {
   Target,
   Clock,
   MapPin,
+  DollarSign,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { projectsService, type Project } from '../services/projects.service';
@@ -137,7 +138,7 @@ export default function ProjectView() {
 
       {/* Métricas Rápidas */}
       <Row gutter={[24, 24]} className="animate-in fade-in slide-in-from-bottom-6 duration-500 delay-75">
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Card className="rounded-2xl shadow-soft border-dark-100 h-full p-1" bodyStyle={{ padding: '20px' }}>
             <div className="flex items-start justify-between">
               <div>
@@ -151,7 +152,7 @@ export default function ProjectView() {
             </div>
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Card className="rounded-2xl shadow-soft border-dark-100 h-full p-1" bodyStyle={{ padding: '20px' }}>
             <div className="flex items-start justify-between">
               <div>
@@ -165,23 +166,58 @@ export default function ProjectView() {
             </div>
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={6}>
           <Card className="rounded-2xl shadow-soft border-dark-100 h-full p-1" bodyStyle={{ padding: '20px' }}>
             <div className="flex items-start justify-between">
               <div>
+                <p className="text-dark-400 text-xs font-bold uppercase tracking-wider mb-1">Orçamento</p>
+                <h3 className="text-xl font-bold text-dark-900 leading-tight">
+                  {project.budget != null
+                    ? project.budget.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                    : '—'}
+                </h3>
+                <p className="text-dark-400 text-xs mt-1 font-medium">Total planejado</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-green-50 text-green-600">
+                <DollarSign size={24} />
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card className="rounded-2xl shadow-soft border-dark-100 h-full p-1" bodyStyle={{ padding: '20px' }}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1 mr-3">
                 <p className="text-dark-400 text-xs font-bold uppercase tracking-wider mb-1">Início</p>
-                <h3 className="text-xl font-bold text-dark-900 leading-tight">{formatDate(project.startDate)}</h3>
+                <h3 className="text-base font-bold text-dark-900 leading-tight">{formatDate(project.startDate)}</h3>
                 <p className="text-dark-400 text-xs mt-1 font-medium">
                   Término: {formatDate(project.endDate)}
                 </p>
               </div>
-              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-dark-50 text-dark-600">
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-dark-50 text-dark-600 shrink-0">
                 <Clock size={24} />
               </div>
             </div>
           </Card>
         </Col>
       </Row>
+
+      {/* Barra de Progresso */}
+      {project.progress !== undefined && (
+        <Card className="rounded-2xl shadow-soft border-dark-100 animate-in fade-in slide-in-from-bottom-6 duration-500 delay-100" bodyStyle={{ padding: '24px' }}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-bold text-dark-700">Progresso Geral do Projeto</span>
+            <span className="text-sm font-bold text-dark-900">{project.progress}%</span>
+          </div>
+          <Progress
+            percent={project.progress}
+            showInfo={false}
+            strokeColor={project.progress === 100 ? '#026B11' : '#0047AF'}
+            trailColor="#F1F5F9"
+            strokeWidth={10}
+          />
+        </Card>
+      )}
 
       {/* Grid Principal */}
       <Row gutter={[24, 24]} className="animate-in fade-in slide-in-from-bottom-8 duration-500 delay-150">

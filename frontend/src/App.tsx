@@ -1,6 +1,6 @@
 import { BrowserRouter } from 'react-router-dom';
 import { AppRoutes } from './routes';
-import { notification } from 'antd';
+import { App as AntApp, notification } from 'antd';
 import { AuthProvider } from './modules/Auth/context/AuthContext';
 
 notification.config({ placement: 'bottomRight', duration: 4 });
@@ -8,9 +8,11 @@ notification.config({ placement: 'bottomRight', duration: 4 });
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <AntApp notification={{ placement: 'bottomRight', duration: 4 }}>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </AntApp>
     </BrowserRouter>
   );
 }

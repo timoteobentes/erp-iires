@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { Dayjs } from 'dayjs';
 import { Card, Row, Col, Button, Select, DatePicker, Divider, message, Modal, Input, Tag } from 'antd';
 import {
   FileText,
@@ -79,6 +80,8 @@ export default function ReportsDashboard() {
   const [emailAddress, setEmailAddress] = useState('');
   const [emailFormat, setEmailFormat] = useState<'pdf' | 'excel'>('pdf');
   const [loadingExport, setLoadingExport] = useState(false);
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // --------------------------------------------------------
   // Exportação real via API
@@ -92,11 +95,19 @@ export default function ReportsDashboard() {
       0,
     );
 
+    const filters: Record<string, any> = {};
+    if (statusFilter !== 'all') filters.status = statusFilter;
+    if (dateRange) {
+      filters.startDate = dateRange[0].format('YYYY-MM-DD');
+      filters.endDate = dateRange[1].format('YYYY-MM-DD');
+    }
+
     try {
       const result = await reportsService.exportReport({
         moduleType: selectedReport.moduleType,
         format,
         sendToEmail,
+        filters: Object.keys(filters).length > 0 ? filters : undefined,
       });
 
       hide();
@@ -232,6 +243,8 @@ export default function ReportsDashboard() {
                     className="w-full rounded-xl"
                     format="DD/MM/YYYY"
                     placeholder={['Data Inicial', 'Data Final']}
+                    value={dateRange}
+                    onChange={(dates) => setDateRange(dates as [Dayjs, Dayjs] | null)}
                   />
                 </Col>
                 <Col xs={24} md={12}>
@@ -241,7 +254,8 @@ export default function ReportsDashboard() {
                   <Select
                     size="large"
                     className="w-full rounded-xl [&_.ant-select-selector]:!rounded-xl"
-                    defaultValue="all"
+                    value={statusFilter}
+                    onChange={(val) => setStatusFilter(val)}
                     options={[
                       { value: 'all', label: 'Todos os Registros' },
                       { value: 'active', label: 'Apenas Ativos / Concluídos' },

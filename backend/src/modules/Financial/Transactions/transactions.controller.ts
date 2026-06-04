@@ -39,14 +39,39 @@ export class TransactionsController {
   // =========================================================
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const transactions = await prisma.transaction.findMany({
-        orderBy: { date: 'desc' },
-        include: {
-          project: { select: { id: true, name: true } },
-          donor: { select: { id: true, name: true } },
-          partner: { select: { id: true, name: true } }
-        }
-      });
+      const { search, status, type, category, page, limit = '50' } = req.query as Record<string, string>;
+
+      const where: any = {};
+      if (status) where.status = status;
+      if (type) where.type = type;
+      if (category) where.category = category;
+      if (search) {
+        where.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { category: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const include = {
+        project: { select: { id: true, name: true } },
+        donor: { select: { id: true, name: true } },
+        partner: { select: { id: true, name: true } },
+      };
+
+      if (page) {
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, parseInt(limit));
+        const skip = (pageNum - 1) * limitNum;
+        const [data, total] = await Promise.all([
+          prisma.transaction.findMany({ where, include, orderBy: { date: 'desc' }, skip, take: limitNum }),
+          prisma.transaction.count({ where }),
+        ]);
+        res.status(200).json({ data, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+        return;
+      }
+
+      const transactions = await prisma.transaction.findMany({ where, include, orderBy: { date: 'desc' } });
       res.status(200).json(transactions);
     } catch (error) {
       console.error('Erro no List Transactions:', error);

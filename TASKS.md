@@ -149,8 +149,10 @@
   Dados reais via `projectsService.getById()`. Voluntários e parceiros exibidos.  
   Seções de `budget`/`progress`/`spent` removidas (não existem no schema). Skeleton de carregamento.
 
-- [ ] **7.5 — Adicionar campos `budget` e `progress` no schema do Projeto** *(requer migration — pendente futuro)*  
-  Campo `budget: Float?` e `progress: Int @default(0)` no `schema.prisma`.
+- [x] **7.5 — Adicionar campos `budget` e `progress` no schema do Projeto**  
+  `budget Float?` e `progress Int @default(0)` adicionados ao `schema.prisma`. `prisma db push` aplicado ao banco.  
+  Backend: create e update aceitam os novos campos. List inclui budget/progress no select.  
+  Frontend: `ProjectForm` com campo de orçamento (R$) e slider de progresso (0–100%). `ProjectView` exibe barra de progresso e card de orçamento.
 
 ---
 
@@ -196,8 +198,9 @@
 - [x] **9.3 — Expandir `ReportsController` no backend**  
   Adicionados: `volunteers` (habilidades, disponibilidade), `partners` (tipo, contato), `projects` (manager, volunteers, partners, datas).
 
-- [ ] **9.4 — Conectar filtros de data e status** nos relatórios *(pendente futuro)*  
-  `RangePicker` e `Select` de status atualmente decorativos — precisam ser passados como `filters` para a API.
+- [x] **9.4 — Conectar filtros de data e status** nos relatórios  
+  `RangePicker` e `Select` de status conectados via estado. Filters passados como `{ startDate, endDate, status }` para a API.  
+  Backend atualizado: `buildWhere()` processa filtros de forma segura (sem passagem direta ao Prisma).
 
 ---
 
@@ -225,33 +228,35 @@
 
 > Atualmente todos os endpoints retornam todos os registros sem suporte a filtro ou paginação.
 
-- [ ] **11.1 — Adicionar suporte a query params de filtragem**  
-  Exemplos: `GET /api/team?status=active`, `GET /api/volunteers?availability=Manhã`, `GET /api/donors?type=PF`.
+- [x] **11.1 — Adicionar suporte a query params de filtragem**  
+  Implementado em todos os controllers: `?status=`, `?type=`, `?availability=`, `?partnershipType=`, `?category=`.
 
-- [ ] **11.2 — Adicionar paginação nos endpoints de listagem**  
-  Suportar `?page=1&limit=10` retornando `{ data, total, page, totalPages }`.
+- [x] **11.2 — Adicionar paginação nos endpoints de listagem**  
+  Todos os controllers de listagem suportam `?page=1&limit=10` retornando `{ data, total, page, totalPages }`.  
+  Sem `page`: retorna array completo (retrocompatível com frontend existente).
 
-- [ ] **11.3 — Adicionar busca por texto**  
-  Query param `?search=nome` fazendo `contains` no Prisma (case-insensitive) para os campos relevantes.
+- [x] **11.3 — Adicionar busca por texto**  
+  `?search=texto` com `contains` case-insensitive nos campos relevantes de cada módulo.
 
 ---
 
 ## 🟡 BLOCO 12 — Funcionalidades de UX pendentes
 
-- [ ] **12.1 — Implementar filtros funcionais em todas as listagens**  
-  Busca, filtros avançados e botão "Aplicar Filtros" atualmente são visuais apenas.
+- [x] **12.1 — Implementar filtros funcionais em todas as listagens**  
+  Filtros client-side implementados em todos os módulos (blocos 3-10). Backend agora também suporta `?search=`, `?status=` etc. (bloco 11).
 
-- [ ] **12.2 — Loading states em todas as listagens**  
-  Usar `Skeleton` do Ant Design enquanto os dados carregam da API.
+- [x] **12.2 — Loading states em todas as listagens**  
+  Skeleton do Ant Design implementado em todos os módulos (blocos 3-10).
 
-- [ ] **12.3 — Empty states**  
-  Exibir mensagem amigável quando não há registros na tabela.
+- [x] **12.3 — Empty states**  
+  Empty states implementados em todos os módulos (blocos 3-10).
 
-- [ ] **12.4 — Tratamento global de erros de API**  
-  Mostrar `notification.error` com mensagem do backend em caso de falha.
+- [x] **12.4 — Tratamento global de erros de API**  
+  `notification.error` com mensagem do backend em todos os módulos. `<App>` do Ant Design adicionado ao `App.tsx` para garantir renderização.  
+  Bug crítico corrigido: interceptor axios não redireciona para `/login` em erros de autenticação própria (login/signup/forgot/reset).
 
-- [ ] **12.5 — Confirmar deleção/inativação com feedback real**  
-  As `Modal.confirm` já existem mas chamam `console.log` — conectar às actions reais do serviço.
+- [x] **12.5 — Confirmar deleção/inativação com feedback real**  
+  `Modal.confirm` conectados às actions reais de serviço em todos os módulos (blocos 3-10).
 
 ---
 
@@ -267,17 +272,22 @@
 
 ## 🟢 BLOCO 14 — Refinamentos de Segurança e Produção
 
-- [ ] **14.1 — Validação de entrada no backend**  
-  Adicionar validação de payload com `zod` ou `class-validator` nos controllers (ex: verificar se `amount` é número positivo).
+- [x] **14.1 — Validação de entrada no backend**  
+  Middleware `validate.middleware.ts` criado. Schemas Zod em `shared/schemas/auth.schemas.ts`.  
+  Aplicado nas rotas de auth: login, signup, forgotPassword, resetPassword, changePassword, updateMe.
 
-- [ ] **14.2 — Rate limiting**  
-  Adicionar `express-rate-limit` na rota de login e recuperação de senha.
+- [x] **14.2 — Rate limiting**  
+  `express-rate-limit` instalado. `loginLimiter` (10 req/15min) em `POST /auth/login`.  
+  `forgotPasswordLimiter` (5 req/hora) em `POST /auth/forgot-password`.
 
 - [ ] **14.3 — Controle de acesso por grupo (RBAC)**  
   O `authMiddleware` já injeta `role` e `group` no `req.user`. Criar middleware de autorização para restringir rotas sensíveis (ex: somente Administrador pode acessar `/api/team`).
 
-- [ ] **14.4 — Refresh Token**  
-  O token JWT expira em 1 dia. Implementar fluxo de refresh token para evitar que o usuário seja deslogado inesperadamente.
+- [x] **14.4 — Refresh Token**  
+  Campo `refreshToken String? @unique` + `refreshTokenExpires DateTime?` adicionados ao model `User`. `prisma db push` aplicado.  
+  Backend: `signIn` retorna `{ token, refreshToken }`. Novos endpoints: `POST /auth/refresh` (rotação do token) e `POST /auth/logout` (invalida o refresh token no banco).  
+  Frontend: `AuthContext.login()` persiste o refreshToken. Interceptor axios com fila de requisições — em caso de 401, tenta refresh automático antes de redirecionar para login.  
+  `authService.logout()` invalida o token no servidor. Variável `JWT_REFRESH_SECRET` necessária no `.env` em produção.
 
 - [ ] **14.5 — Helmet e segurança de headers**  
   Helmet já está configurado. Revisar e endurecer a CSP para produção.
@@ -302,15 +312,15 @@
 | Módulo | Backend | Frontend (UI) | Integração |
 |---|---|---|---|
 | **Autenticação** | ✅ Completo | ✅ Completo | ✅ Integrado |
-| **Equipe** | ✅ Completo | ✅ UI pronta | ❌ Pendente |
-| **Voluntários** | ✅ Completo | ✅ UI pronta | ❌ Pendente |
-| **Doadores** | ✅ Completo | ✅ UI pronta | ❌ Pendente |
-| **Parceiros** | ✅ Completo | ✅ UI pronta | ❌ Pendente |
-| **Projetos** | ✅ Completo | ✅ UI pronta | ❌ Pendente |
-| **Financeiro** | ✅ Completo | ✅ UI pronta | ❌ Pendente |
-| **Relatórios** | 🟡 Parcial | ✅ UI pronta | ❌ Pendente |
-| **Dashboard** | — | ✅ UI pronta | ❌ Pendente |
-| **Perfil do Usuário** | 🟡 Parcial | ✅ UI pronta | ❌ Pendente |
+| **Equipe** | ✅ Completo | ✅ UI pronta | ✅ Integrado |
+| **Voluntários** | ✅ Completo | ✅ UI pronta | ✅ Integrado |
+| **Doadores** | ✅ Completo | ✅ UI pronta | ✅ Integrado |
+| **Parceiros** | ✅ Completo | ✅ UI pronta | ✅ Integrado |
+| **Projetos** | ✅ Completo | ✅ UI pronta | ✅ Integrado |
+| **Financeiro** | ✅ Completo | ✅ UI pronta | ✅ Integrado |
+| **Relatórios** | ✅ Completo | ✅ UI pronta | ✅ Integrado |
+| **Dashboard** | — | ✅ UI pronta | ✅ Integrado |
+| **Perfil do Usuário** | ✅ Completo | ✅ UI pronta | ✅ Integrado |
 | **Configurações** | ❌ Ausente | 🟡 Placeholder | ❌ Pendente |
 
 ---

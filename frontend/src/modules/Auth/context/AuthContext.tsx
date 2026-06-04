@@ -21,7 +21,7 @@ interface AuthContextData {
   token: string | null;
   isAuthenticated: boolean;
   isLoadingAuth: boolean;
-  login: (token: string, user: AuthUser) => void;
+  login: (token: string, user: AuthUser, refreshToken?: string) => void;
   logout: () => void;
   updateUser: (updatedFields: Partial<AuthUser>) => void;
 }
@@ -62,9 +62,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Chamado após login ou signup bem-sucedido
-  const login = useCallback((newToken: string, newUser: AuthUser) => {
+  const login = useCallback((newToken: string, newUser: AuthUser, refreshToken?: string) => {
     localStorage.setItem('@iires:token', newToken);
     localStorage.setItem('@iires:user', JSON.stringify(newUser));
+    if (refreshToken) localStorage.setItem('@iires:refreshToken', refreshToken);
     setToken(newToken);
     setUser(newUser);
   }, []);
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem('@iires:token');
     localStorage.removeItem('@iires:user');
+    localStorage.removeItem('@iires:refreshToken');
     setToken(null);
     setUser(null);
   }, []);

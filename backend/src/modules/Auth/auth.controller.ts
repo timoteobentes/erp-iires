@@ -5,6 +5,17 @@ import crypto from 'crypto';
 import prisma from '../../config/prisma.js';
 import { MailService } from '../../shared/services/mail.service.js';
 
+const JWT_SECRET = () => process.env.JWT_SECRET || 'secret-fallback-nao-use-em-prod';
+const REFRESH_SECRET = () => process.env.JWT_REFRESH_SECRET || 'refresh-fallback-nao-use-em-prod';
+const REFRESH_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
+
+function generateTokens(userId: string, role: string | null, group: string | null) {
+  const accessToken = jwt.sign({ id: userId, role, group }, JWT_SECRET(), { expiresIn: '1d' });
+  const refreshToken = crypto.randomBytes(40).toString('hex');
+  const refreshExpires = new Date(Date.now() + REFRESH_EXPIRES_MS);
+  return { accessToken, refreshToken, refreshExpires };
+}
+
 export class AuthController {
 
   // 1. ROTA DE CADASTRO
@@ -79,24 +90,19 @@ export class AuthController {
         return;
       }
 
-      // 3. Gera o Token JWT (Crachá de Acesso)
-      // Usamos a chave secreta que definimos no .env
-      const secret = process.env.JWT_SECRET || 'secret-fallback-nao-use-em-prod';
-      
-      const token = jwt.sign(
-        { 
-          id: user.id, 
-          role: user.role,
-          group: user.group 
-        }, // Payload (Dados públicos que vão dentro do token)
-        secret,
-        { expiresIn: '1d' } // O token expira em 1 dia
-      );
+      // 3. Gera o Access Token + Refresh Token
+      const { accessToken, refreshToken, refreshExpires } = generateTokens(user.id, user.role, user.group);
 
-      // 4. Retorna os dados do usuário + o Token
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken, refreshTokenExpires: refreshExpires },
+      });
+
+      // 4. Retorna os dados do usuário + os tokens
       res.status(200).json({
         message: 'Login realizado com sucesso!',
-        token,
+        token: accessToken,
+        refreshToken,
         user: {
           id: user.id,
           name: user.name,
@@ -293,7 +299,65 @@ export class AuthController {
     }
   }
 
-  // 7. REDEFINIR SENHA (Com Token)
+  // 7. REFRESH TOKEN — troca o refresh token por novos tokens
+  async refresh(req: Request, res: Response): Promise<void> {
+    try {
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        res.status(400).json({ error: 'Refresh token é obrigatório.' });
+        return;
+      }
+
+      const user = await prisma.user.findFirst({
+        where: {
+          refreshToken,
+          refreshTokenExpires: { gt: new Date() },
+          status: 'active',
+        },
+      });
+
+      if (!user) {
+        res.status(401).json({ error: 'Refresh token inválido ou expirado. Faça login novamente.' });
+        return;
+      }
+
+      const { accessToken, refreshToken: newRefreshToken, refreshExpires } = generateTokens(user.id, user.role, user.group);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken: newRefreshToken, refreshTokenExpires: refreshExpires },
+      });
+
+      res.status(200).json({
+        token: accessToken,
+        refreshToken: newRefreshToken,
+        user: { id: user.id, name: user.name, email: user.email, role: user.role, group: user.group },
+      });
+    } catch (error) {
+      console.error('Erro no refresh:', error);
+      res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+  }
+
+  // 8. LOGOUT — invalida o refresh token
+  async logout(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (userId) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { refreshToken: null, refreshTokenExpires: null },
+        });
+      }
+      res.status(200).json({ message: 'Logout realizado com sucesso.' });
+    } catch (error) {
+      console.error('Erro no logout:', error);
+      res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+  }
+
+  // 9. REDEFINIR SENHA (Com Token)
   async resetPassword(req: Request, res: Response): Promise<void> {
     try {
       const { token, newPassword } = req.body;

@@ -98,19 +98,33 @@ export class TeamController {
   // =========================================================
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const team = await prisma.user.findMany({
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          level: true,
-          group: true,
-          status: true
-        },
-        orderBy: { name: 'asc' }
-      });
+      const { search, status, page, limit = '50' } = req.query as Record<string, string>;
 
+      const where: any = {};
+      if (status) where.status = status;
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { role: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const select = { id: true, name: true, email: true, role: true, level: true, group: true, status: true };
+
+      if (page) {
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.min(100, parseInt(limit));
+        const skip = (pageNum - 1) * limitNum;
+        const [data, total] = await Promise.all([
+          prisma.user.findMany({ where, select, orderBy: { name: 'asc' }, skip, take: limitNum }),
+          prisma.user.count({ where }),
+        ]);
+        res.status(200).json({ data, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
+        return;
+      }
+
+      const team = await prisma.user.findMany({ where, select, orderBy: { name: 'asc' } });
       res.status(200).json(team);
     } catch (error) {
       console.error('Erro no List Team:', error);

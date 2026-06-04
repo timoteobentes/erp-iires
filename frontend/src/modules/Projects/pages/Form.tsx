@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Form, Input, Button, DatePicker, Select, Row, Col, Card, Skeleton, notification } from 'antd';
-import { ArrowLeft, Briefcase, Users, AlignLeft } from 'lucide-react';
+import { Form, Input, Button, DatePicker, Select, Row, Col, Card, Skeleton, notification, InputNumber, Slider } from 'antd';
+import { ArrowLeft, Briefcase, Users, AlignLeft, DollarSign } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { projectsService } from '../services/projects.service';
@@ -65,6 +65,8 @@ export default function ProjectForm() {
           endDate: p.endDate ? dayjs(p.endDate) : undefined,
           volunteerIds: (p.volunteers ?? []).map((v) => v.id),
           partnerIds: (p.partners ?? []).map((pt) => pt.id),
+          budget: p.budget ?? undefined,
+          progress: p.progress ?? 0,
         });
       } catch {
         notification.error({
@@ -93,6 +95,8 @@ export default function ProjectForm() {
       endDate: values.endDate ? values.endDate.toISOString() : null,
       volunteerIds: values.volunteerIds ?? [],
       partnerIds: values.partnerIds ?? [],
+      budget: values.budget !== undefined && values.budget !== null ? Number(values.budget) : null,
+      progress: values.progress ?? 0,
     };
 
     try {
@@ -293,7 +297,50 @@ export default function ProjectForm() {
           </Row>
         </Card>
 
-        {/* BLOCO 3: Detalhamento */}
+        {/* BLOCO 3: Orçamento e Progresso */}
+        <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
+          <div className="flex items-center gap-2 mb-6 text-dark-900">
+            <DollarSign size={20} className="text-secondary-500" />
+            <h2 className="text-lg font-bold">Orçamento e Progresso</h2>
+          </div>
+
+          <Row gutter={24}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Orçamento Total (R$)</span>}
+                name="budget"
+              >
+                <InputNumber
+                  size="large"
+                  min={0}
+                  step={100}
+                  precision={2}
+                  className="w-full rounded-xl"
+                  placeholder="Ex: 15000.00"
+                  formatter={(v) => v ? `R$ ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}
+                  parser={(v) => (v ? v.replace(/R\$\s?|[.]/g, '').replace(',', '.') : '') as any}
+                />
+              </Form.Item>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Progresso Atual (%)</span>}
+                name="progress"
+              >
+                <Slider
+                  min={0}
+                  max={100}
+                  step={5}
+                  marks={{ 0: '0%', 25: '25%', 50: '50%', 75: '75%', 100: '100%' }}
+                  tooltip={{ formatter: (v) => `${v}%` }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* BLOCO 4: Detalhamento */}
         <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
           <div className="flex items-center gap-2 mb-6 text-dark-900">
             <AlignLeft size={20} className="text-dark-400" />
