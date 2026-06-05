@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAvatar } from '@dicebear/core';
 import * as avataaars from '@dicebear/avataaars';
 
@@ -58,6 +59,7 @@ function arr(val?: string): string[] | undefined {
 }
 
 function buildDataUri(opts: AvatarOptions, seed: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const avatar = createAvatar(avataaars, {
     seed,
     ...(opts.skinColor        && { skinColor:        [opts.skinColor] }),
@@ -73,7 +75,7 @@ function buildDataUri(opts: AvatarOptions, seed: string): string {
     accessoriesProbability: opts.accessoriesProbability ?? 0,
     ...(arr(opts.facialHair)   && { facialHair: arr(opts.facialHair) }),
     facialHairProbability: opts.facialHairProbability ?? 0,
-  });
+  } as any);
 
   const svg = avatar.toString();
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;

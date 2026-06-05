@@ -49,7 +49,7 @@ export class NotificationsController {
   // PATCH /notifications/:id/read — marca uma como lida
   async markRead(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id     = req.params['id'] as string;
       const userId = req.user!.id;
 
       const notification = await prisma.notification.findFirst({
@@ -79,7 +79,7 @@ export class NotificationsController {
   // DELETE /notifications/:id — remove uma notificação
   async deleteOne(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id     = req.params['id'] as string;
       const userId = req.user!.id;
 
       const notification = await prisma.notification.findFirst({

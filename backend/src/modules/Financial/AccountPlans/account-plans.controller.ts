@@ -25,7 +25,7 @@ export class AccountPlansController {
   async getById(req: Request, res: Response): Promise<void> {
     try {
       const plan = await prisma.accountPlan.findUnique({
-        where: { id: req.params.id },
+        where: { id: req.params['id'] as string },
         include: { parent: true, children: true },
       });
       if (!plan) { res.status(404).json({ error: 'Plano de contas não encontrado.' }); return; }
@@ -59,7 +59,7 @@ export class AccountPlansController {
     try {
       const { code, name, type, parentId, description, active } = req.body;
       const plan = await prisma.accountPlan.update({
-        where: { id: req.params.id },
+        where: { id: req.params['id'] as string },
         data: {
           ...(code !== undefined && { code }),
           ...(name !== undefined && { name }),
@@ -81,7 +81,7 @@ export class AccountPlansController {
   async delete(req: Request, res: Response): Promise<void> {
     try {
       await prisma.accountPlan.update({
-        where: { id: req.params.id },
+        where: { id: req.params['id'] as string },
         data: { active: false },
       });
       res.json({ message: 'Plano de contas desativado.' });

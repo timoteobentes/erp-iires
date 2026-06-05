@@ -249,7 +249,7 @@ export class TransactionsController {
   async getById(req: Request, res: Response): Promise<void> {
     try {
       const transaction = await prisma.transaction.findUnique({
-        where: { id: req.params.id },
+        where: { id: req.params['id'] as string },
         include: COMMON_INCLUDE,
       });
       if (!transaction) { res.status(404).json({ error: 'Transação não encontrada.' }); return; }
@@ -266,7 +266,7 @@ export class TransactionsController {
   async getByGroup(req: Request, res: Response): Promise<void> {
     try {
       const transactions = await prisma.transaction.findMany({
-        where: { groupId: req.params.groupId },
+        where: { groupId: req.params['groupId'] as string },
         include: COMMON_INCLUDE,
         orderBy: { date: 'asc' },
       });
@@ -300,7 +300,7 @@ export class TransactionsController {
       }
 
       const updated = await prisma.transaction.update({
-        where: { id: req.params.id },
+        where: { id: req.params['id'] as string },
         data:  updateData,
         include: COMMON_INCLUDE,
       });
@@ -318,7 +318,7 @@ export class TransactionsController {
   async cancelGroup(req: Request, res: Response): Promise<void> {
     try {
       const result = await prisma.transaction.updateMany({
-        where: { groupId: req.params.groupId, status: 'PENDING' },
+        where: { groupId: req.params['groupId'] as string, status: 'PENDING' },
         data:  { status: 'CANCELED' },
       });
       res.status(200).json({ message: `${result.count} lançamento(s) cancelado(s).` });
@@ -334,7 +334,7 @@ export class TransactionsController {
   async delete(req: Request, res: Response): Promise<void> {
     try {
       await prisma.transaction.update({
-        where: { id: req.params.id },
+        where: { id: req.params['id'] as string },
         data:  { status: 'CANCELED' },
       });
       res.status(200).json({ message: 'Transação cancelada.' });

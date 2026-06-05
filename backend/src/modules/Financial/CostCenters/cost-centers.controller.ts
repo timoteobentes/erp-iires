@@ -19,7 +19,7 @@ export class CostCentersController {
 
   async getById(req: Request, res: Response): Promise<void> {
     try {
-      const center = await prisma.costCenter.findUnique({ where: { id: req.params.id } });
+      const center = await prisma.costCenter.findUnique({ where: { id: req.params['id'] as string } });
       if (!center) { res.status(404).json({ error: 'Centro de custo não encontrado.' }); return; }
       res.json(center);
     } catch (error) {
@@ -60,7 +60,7 @@ export class CostCentersController {
     try {
       const { name, description, active } = req.body;
       const center = await prisma.costCenter.update({
-        where: { id: req.params.id },
+        where: { id: req.params['id'] as string },
         data: {
           ...(name !== undefined && { name }),
           ...(description !== undefined && { description }),
@@ -78,7 +78,7 @@ export class CostCentersController {
 
   async delete(req: Request, res: Response): Promise<void> {
     try {
-      await prisma.costCenter.update({ where: { id: req.params.id }, data: { active: false } });
+      await prisma.costCenter.update({ where: { id: req.params['id'] as string }, data: { active: false } });
       res.json({ message: 'Centro de custo desativado.' });
     } catch (error: any) {
       if (error.code === 'P2025') { res.status(404).json({ error: 'Não encontrado.' }); return; }
