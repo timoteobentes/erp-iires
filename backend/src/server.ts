@@ -14,6 +14,7 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
   'http://localhost:5173',  // Vite dev server (fallback explícito)
   'http://localhost:4173',  // Vite preview
+  'https://system.iires.org'
 ];
 
 app.use(cors({
