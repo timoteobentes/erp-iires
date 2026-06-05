@@ -12,57 +12,65 @@ import {
   CheckCircle2,
   AlertCircle,
   Info,
-  Clock
+  Clock,
+  XCircle,
+  Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../modules/Auth/context/AuthContext';
 import { useAuth } from '../modules/Auth/hooks/useAuth';
 import { getAvatarUrl } from '../utils/avatar';
+import { useNotifications } from '../hooks/useNotifications';
+import type { Notification } from '../services/notifications.service';
 
 interface HeaderProps {
   collapsed: boolean;
   onMenuClick: () => void;
 }
 
-// Mock de Notificações (será integrado ao backend no futuro)
-const notifications = [
-  {
-    id: '1',
-    title: 'Novo Projeto Criado',
-    description: 'O projeto "Inovação Verde" foi registrado com sucesso.',
-    time: '5 min atrás',
-    type: 'success',
-    icon: <CheckCircle2 size={16} className="text-primary-600" />,
-    bg: 'bg-primary-50',
-  },
-  {
-    id: '2',
-    title: 'Aviso de Orçamento',
-    description: 'O orçamento do projeto "Água Limpa" atingiu 80%.',
-    time: '2 horas atrás',
-    type: 'warning',
-    icon: <AlertCircle size={16} className="text-warning" />,
-    bg: 'bg-yellow-50',
-  },
-  {
-    id: '3',
-    title: 'Novo Voluntário',
-    description: 'Marcos Silva se candidatou para o projeto "Horta Comunitária".',
-    time: '5 horas atrás',
-    type: 'info',
-    icon: <Info size={16} className="text-secondary-600" />,
-    bg: 'bg-secondary-50',
-  },
-];
+function notificationIcon(type: Notification['type']) {
+  switch (type) {
+    case 'success': return <CheckCircle2 size={16} className="text-primary-600" />;
+    case 'warning': return <AlertCircle size={16} className="text-yellow-500" />;
+    case 'error':   return <XCircle size={16} className="text-red-500" />;
+    default:        return <Info size={16} className="text-secondary-600" />;
+  }
+}
+
+function notificationBg(type: Notification['type']) {
+  switch (type) {
+    case 'success': return 'bg-primary-50';
+    case 'warning': return 'bg-yellow-50';
+    case 'error':   return 'bg-red-50';
+    default:        return 'bg-secondary-50';
+  }
+}
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1)  return 'agora';
+  if (minutes < 60) return `${minutes} min atrás`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24)   return `${hours}h atrás`;
+  const days = Math.floor(hours / 24);
+  return `${days}d atrás`;
+}
 
 const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { logout } = useAuth();
+  const { notifications, unreadCount, markRead, markAllRead, deleteOne } = useNotifications();
 
   const displayName = user?.name ?? '—';
   const displayRole = user?.role ?? user?.group ?? '';
   const avatarUrl = getAvatarUrl(user?.avatarConfig, user?.name ?? 'default');
+
+  const handleNotificationClick = async (n: Notification) => {
+    if (!n.isRead) await markRead(n.id);
+    if (n.link) navigate(n.link);
+  };
 
   const userMenuItems = [
     { key: 'profile', label: 'Meu Perfil', icon: <User size={16} />, onClick: () => navigate('/profile') },
@@ -107,28 +115,60 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
             <div className="bg-white rounded-2xl shadow-card border border-dark-100 overflow-hidden animate-in slide-in-from-top-2 duration-300">
               <div className="p-4 flex justify-between items-center bg-white border-b border-dark-50">
                 <h3 className="text-base font-bold text-dark-900">Notificações</h3>
-                <span className="text-xs font-medium text-primary-600 cursor-pointer hover:underline">Marcar todas como lidas</span>
+                {unreadCount > 0 && (
+                  <span
+                    className="text-xs font-medium text-primary-600 cursor-pointer hover:underline"
+                    onClick={markAllRead}
+                  >
+                    Marcar todas como lidas
+                  </span>
+                )}
               </div>
 
               <div className="max-h-[400px] overflow-auto custom-scrollbar">
-                <List
-                  dataSource={notifications}
-                  renderItem={(item) => (
-                    <div key={item.id} className="p-4 hover:bg-dark-50/50 cursor-pointer transition-colors flex gap-4 border-b border-dark-50 last:border-none">
-                      <div className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center ${item.bg}`}>
-                        {item.icon}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-dark-900 leading-tight">{item.title}</p>
-                        <p className="text-xs text-dark-500 mt-1 line-clamp-2">{item.description}</p>
-                        <div className="flex items-center gap-1 mt-2 text-[10px] text-dark-300 font-medium">
-                          <Clock size={10} />
-                          {item.time}
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center text-dark-400 text-sm">
+                    Nenhuma notificação por enquanto.
+                  </div>
+                ) : (
+                  <List
+                    dataSource={notifications}
+                    renderItem={(item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => handleNotificationClick(item)}
+                        className={`p-4 cursor-pointer transition-colors flex gap-4 border-b border-dark-50 last:border-none group ${
+                          item.isRead ? 'opacity-60 hover:opacity-100' : 'hover:bg-dark-50/50'
+                        }`}
+                      >
+                        <div className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center ${notificationBg(item.type)}`}>
+                          {notificationIcon(item.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`text-sm font-bold leading-tight ${!item.isRead ? 'text-dark-900' : 'text-dark-600'}`}>
+                              {item.title}
+                              {!item.isRead && (
+                                <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-primary-500 align-middle" />
+                              )}
+                            </p>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteOne(item.id); }}
+                              className="opacity-0 group-hover:opacity-100 shrink-0 text-dark-300 hover:text-red-500 transition-all"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                          <p className="text-xs text-dark-500 mt-1 line-clamp-2">{item.description}</p>
+                          <div className="flex items-center gap-1 mt-2 text-[10px] text-dark-300 font-medium">
+                            <Clock size={10} />
+                            {timeAgo(item.createdAt)}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                />
+                    )}
+                  />
+                )}
               </div>
 
               <div className="p-3 bg-dark-50/30 text-center border-t border-dark-50">
@@ -139,7 +179,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
             </div>
           )}
         >
-          <Badge count={3} offset={[-2, 5]} className="cursor-pointer">
+          <Badge count={unreadCount} offset={[-2, 5]} className="cursor-pointer">
             <div className="p-2 hover:bg-background rounded-full transition-colors">
               <Bell size={22} className="text-dark-500" />
             </div>

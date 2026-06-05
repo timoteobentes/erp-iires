@@ -7,6 +7,7 @@ import partnersRoutes from './modules/People/Partners/partners.routes.js';
 import projectsRoutes from './modules/Projects/projects.routes.js';
 import transactionsRoutes from './modules/Financial/Transactions/transactions.routes.js';
 import reportsRoutes from './modules/Reports/reports.routes.js';
+import notificationsRoutes from './modules/Notifications/notifications.routes.js';
 
 const routes = Router();
 
@@ -18,5 +19,6 @@ routes.use('/partners', partnersRoutes);
 routes.use('/projects', projectsRoutes);
 routes.use('/transactions', transactionsRoutes);
 routes.use('/reports', reportsRoutes);
+routes.use('/notifications', notificationsRoutes);
 
 export default routes;

@@ -75,6 +75,9 @@ model User {
   // Projetos Gerenciados
   managedProjects Project[]
 
+  // Notificações
+  notifications Notification[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -219,6 +222,26 @@ model Transaction {
   updatedAt   DateTime @updatedAt
 
   @@map("transactions")
+}
+
+// TABELA DE NOTIFICAÇÕES
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String?  // null = notificação global (todos os usuários veem)
+  title       String
+  description String   @db.Text
+  type        String   @default("info") // success | warning | info | error
+  isRead      Boolean  @default(false)
+  link        String?  // rota opcional para navegar ao clicar
+
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+
+  @@map("notifications")
 }
 
 // TABELA DE AUDITORIA (LOGS DE SISTEMA)
