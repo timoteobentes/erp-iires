@@ -43,7 +43,7 @@ export class CostCentersController {
       let nextNum = 1;
       if (last?.code) {
         const match = last.code.match(/^CC-(\d+)$/i);
-        if (match) nextNum = parseInt(match[1], 10) + 1;
+        if (match && match[1]) nextNum = parseInt(match[1], 10) + 1;
       }
       const code = `CC-${String(nextNum).padStart(2, '0')}`;
 

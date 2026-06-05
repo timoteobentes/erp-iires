@@ -41,28 +41,27 @@ export class ReportsController {
         });
 
         data = transactions.map(t => ({
-          id: t.id,
-          title: t.title,
-          type: t.type === 'INCOME' ? 'Entrada' : 'Saída',
-          amount: t.amount,
-          date: t.date.toISOString().split('T')[0],
-          status: t.status,
-          category: t.category,
-          projectName: t.project?.name || 'N/A',
-          donorName: t.donor?.name || 'N/A',
-          partnerName: t.partner?.name || 'N/A'
+          title:         t.title,
+          type:          t.type === 'INCOME' ? 'Entrada' : 'Saída',
+          amount:        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount),
+          date:          t.date.toISOString().split('T')[0],
+          status:        t.status === 'PAID' ? 'Pago' : t.status === 'PENDING' ? 'Pendente' : 'Cancelado',
+          paymentMethod: t.paymentMethod || '—',
+          observations:  t.observations  || '—',
+          projectName:   t.project?.name || '—',
+          partnerName:   t.partner?.name || '—',
         }));
 
         columns = [
-          { header: 'Título', key: 'title', width: 30 },
-          { header: 'Tipo', key: 'type', width: 15 },
-          { header: 'Valor', key: 'amount', width: 15 },
-          { header: 'Data', key: 'date', width: 15 },
-          { header: 'Status', key: 'status', width: 15 },
-          { header: 'Categoria', key: 'category', width: 20 },
-          { header: 'Projeto', key: 'projectName', width: 25 },
-          { header: 'Doador', key: 'donorName', width: 25 },
-          { header: 'Parceiro', key: 'partnerName', width: 25 }
+          { header: 'Título',          key: 'title',         width: 30 },
+          { header: 'Tipo',            key: 'type',          width: 12 },
+          { header: 'Valor',           key: 'amount',        width: 18 },
+          { header: 'Data',            key: 'date',          width: 13 },
+          { header: 'Status',          key: 'status',        width: 13 },
+          { header: 'Forma Pagto.',    key: 'paymentMethod', width: 20 },
+          { header: 'Projeto',         key: 'projectName',   width: 22 },
+          { header: 'Parceiro',        key: 'partnerName',   width: 22 },
+          { header: 'Observações',     key: 'observations',  width: 25 },
         ];
 
         reportTitle = 'Relatório Financeiro';
@@ -225,7 +224,7 @@ export class ReportsController {
         contentType = 'text/csv';
         fileExtension = 'csv';
       } else if (format === 'pdf') {
-        buffer = await ReportsService.generatePDF(data, reportTitle);
+        buffer = await ReportsService.generatePDF(data, reportTitle, columns, filters);
         contentType = 'application/pdf';
         fileExtension = 'pdf';
       } else {
