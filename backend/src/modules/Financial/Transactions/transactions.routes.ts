@@ -3,18 +3,22 @@ import { TransactionsController } from './transactions.controller.js';
 import { authMiddleware } from '../../../shared/middlewares/auth.middleware.js';
 
 const transactionsRoutes = Router();
-const transactionsController = new TransactionsController();
+const ctrl = new TransactionsController();
 
-// Aplica o middleware de autenticação em todas as rotas
 transactionsRoutes.use(authMiddleware);
 
-transactionsRoutes.post('/', transactionsController.create);
-transactionsRoutes.get('/', transactionsController.list);
-// ATENÇÃO: a rota /summary deve vir antes de /:id para não ser interpretada como um ID
-transactionsRoutes.get('/summary', transactionsController.getSummary);
-transactionsRoutes.get('/monthly-summary', transactionsController.getMonthlySummary);
-transactionsRoutes.get('/:id', transactionsController.getById);
-transactionsRoutes.put('/:id', transactionsController.update);
-transactionsRoutes.delete('/:id', transactionsController.delete);
+// Rotas fixas ANTES de /:id para evitar conflito de parâmetro
+transactionsRoutes.get('/summary',         ctrl.getSummary);
+transactionsRoutes.get('/monthly-summary', ctrl.getMonthlySummary);
+transactionsRoutes.post('/batch',          ctrl.createBatch);
+transactionsRoutes.get('/group/:groupId',  ctrl.getByGroup);
+transactionsRoutes.delete('/group/:groupId', ctrl.cancelGroup);
+
+// CRUD padrão
+transactionsRoutes.get('/',     ctrl.list);
+transactionsRoutes.post('/',    ctrl.create);
+transactionsRoutes.get('/:id',  ctrl.getById);
+transactionsRoutes.put('/:id',  ctrl.update);
+transactionsRoutes.delete('/:id', ctrl.delete);
 
 export default transactionsRoutes;

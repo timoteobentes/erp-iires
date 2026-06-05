@@ -197,29 +197,86 @@ model Project {
   @@map("projects")
 }
 
+// PLANO DE CONTAS
+model AccountPlan {
+  id          String        @id @default(uuid())
+  code        String        @unique
+  name        String
+  type        String        // INCOME | EXPENSE | BOTH
+  parentId    String?
+  parent      AccountPlan?  @relation("AccountPlanChildren", fields: [parentId], references: [id])
+  children    AccountPlan[] @relation("AccountPlanChildren")
+  description String?
+  active      Boolean       @default(true)
+
+  transactions Transaction[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("account_plans")
+}
+
+// CENTRO DE CUSTOS
+model CostCenter {
+  id          String        @id @default(uuid())
+  code        String        @unique
+  name        String
+  description String?
+  active      Boolean       @default(true)
+
+  transactions Transaction[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("cost_centers")
+}
+
 // TABELA DE TRANSAÇÕES FINANCEIRAS
 model Transaction {
   id          String   @id @default(uuid())
-  title       String   // "Doação Mensal", "Compra de Materiais"
+  title       String
   description String?
-  type        String   // 'INCOME' ou 'EXPENSE'
+  type        String   // INCOME | EXPENSE
   amount      Float
   date        DateTime
-  status      String   @default("PAID") // 'PENDING', 'PAID', 'CANCELED'
-  category    String   // 'Doação', 'Infraestrutura', 'Marketing', 'Evento'
-  
+  status      String   @default("PAID") // PENDING | PAID | CANCELED
+  category    String
+
+  // Forma de pagamento e plano de contas
+  paymentMethod String?
+  observations  String?  @db.Text
+  attachments   Json?    // [{name, mimeType, size, data (base64)}]
+
+  // Plano de contas e centro de custo
+  accountPlanId String?
+  accountPlan   AccountPlan? @relation(fields: [accountPlanId], references: [id])
+  costCenterId  String?
+  costCenter    CostCenter?  @relation(fields: [costCenterId], references: [id])
+
+  // Parcelamento e recorrência
+  groupId             String?   // UUID que agrupa parcelas ou recorrências
+  groupType           String?   // INSTALLMENT | RECURRING
+  installmentNumber   Int?      // 1-based (1 de 3, 2 de 3...)
+  installmentTotal    Int?      // total de parcelas
+  recurrenceFrequency String?   // WEEKLY | MONTHLY | QUARTERLY | ANNUALLY
+  recurrenceEndDate   DateTime?
+
   // Relacionamentos Opcionais
   projectId   String?
   project     Project? @relation(fields: [projectId], references: [id])
-  
+
   donorId     String?
   donor       Donor?   @relation(fields: [donorId], references: [id])
-  
+
   partnerId   String?
   partner     Partner? @relation(fields: [partnerId], references: [id])
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([groupId])
 
   @@map("transactions")
 }

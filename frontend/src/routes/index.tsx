@@ -23,6 +23,8 @@ import PayablesView from '../modules/Finance/pages/Payables/PayablesView';
 import ReceivablesList from '../modules/Finance/pages/Receivables/ReceivablesList';
 import ReceivablesForm from '../modules/Finance/pages/Receivables/ReceivablesForm';
 import ReceivablesView from '../modules/Finance/pages/Receivables/ReceivablesView';
+import AccountPlansList from '../modules/Finance/pages/AccountPlans/AccountPlansList';
+import CostCentersList from '../modules/Finance/pages/CostCenters/CostCentersList';
 
 import TeamList from '../modules/People/pages/Team/TeamList';
 import TeamForm from '../modules/People/pages/Team/TeamForm';
@@ -75,6 +77,9 @@ export function AppRoutes() {
           <Route path="/finance/receivables/new" element={<ReceivablesForm />} />
           <Route path="/finance/receivables/:id/edit" element={<ReceivablesForm />} />
           <Route path="/finance/receivables/:id" element={<ReceivablesView />} />
+
+          <Route path="/finance/account-plans" element={<AccountPlansList />} />
+          <Route path="/finance/cost-centers" element={<CostCentersList />} />
 
           {/* Módulo Pessoas */}
           <Route path="/people/team" element={<TeamList />} />

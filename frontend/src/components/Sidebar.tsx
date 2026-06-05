@@ -35,6 +35,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         { key: '/finance', label: 'Visão Geral' },
         { key: '/finance/payables', label: 'Contas a Pagar' },
         { key: '/finance/receivables', label: 'Contas a Receber' },
+        { key: '/finance/account-plans', label: 'Plano de Contas' },
+        { key: '/finance/cost-centers', label: 'Centro de Custos' },
       ]
     },
     
