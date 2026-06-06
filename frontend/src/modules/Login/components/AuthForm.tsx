@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, Input, Button } from 'antd';
 import { loginSchema, type LoginFormValues } from '../../Auth/schemas/auth.schema';
 import { useAuth } from '../../Auth/hooks/useAuth';
+import logoOriginal from '../../../assets/logo-original.png';
 
 export function AuthForm() {
   const { handleLogin, isLoading } = useAuth();
@@ -21,7 +22,7 @@ export function AuthForm() {
 
   return (
     <div className="w-full max-w-[400px] mx-auto p-8 lg:p-0">
-      <img src="/src/assets/logo-original.png" alt="IIRes" className="w-full h-auto opacity-100" />
+      <img src={logoOriginal} alt="IIRes" className="w-full h-auto opacity-100" />
       
       <div className="my-8">
         <h1 className="text-[26px] font-semibold text-gray-900 mb-1.5 leading-tight tracking-tight">Entrar</h1>

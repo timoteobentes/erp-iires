@@ -5,6 +5,7 @@ import { Form, Input, Button, notification } from 'antd';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../../Auth/services/auth.service';
+import logoOriginal from '../../../assets/logo-original.png';
 
 const resetPasswordSchema = z.object({
   password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
@@ -54,7 +55,7 @@ export function ResetPasswordForm() {
 
   return (
     <div className="w-full max-w-[400px] mx-auto p-8 lg:p-0">
-      <img src="/src/assets/logo-original.png" alt="IIRes" className="w-full h-auto opacity-100" />
+      <img src={logoOriginal} alt="IIRes" className="w-full h-auto opacity-100" />
       
       <div className="my-8">
         <h1 className="text-[26px] font-semibold text-gray-900 mb-1.5 leading-tight tracking-tight">Redefinir senha</h1>

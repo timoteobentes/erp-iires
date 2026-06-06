@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, Input, Button, notification } from 'antd';
 import { useState } from 'react';
 import { authService } from '../../Auth/services/auth.service';
+import logoOriginal from '../../../assets/logo-original.png';
 
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'E-mail é obrigatório').email('Formato de e-mail inválido'),
@@ -39,7 +40,7 @@ export function ForgotPasswordForm() {
 
   return (
     <div className="w-full max-w-[400px] mx-auto p-8 lg:p-0">
-      <img src="/src/assets/logo-original.png" alt="IIRes" className="w-full h-auto opacity-100" />
+      <img src={logoOriginal} alt="IIRes" className="w-full h-auto opacity-100" />
       
       <div className="my-8">
         <h1 className="text-[26px] font-semibold text-gray-900 mb-1.5 leading-tight tracking-tight">Esqueceu a senha?</h1>

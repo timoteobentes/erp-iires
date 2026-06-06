@@ -1,3 +1,5 @@
+import iiresLogoBranca from '../../../assets/iires-logo-branca.png';
+
 export function HeroSection() {
   return (
     <div className="hidden lg:flex flex-col justify-center relative w-full h-full from-[#026B11] to-[#2B2E4A] bg-gradient-to-b text-white overflow-hidden p-12 xl:p-24">
@@ -19,7 +21,7 @@ export function HeroSection() {
 
       {/* Large Abstract Graphic Bottom Right */}
       <div className="absolute bottom-[-15%] right-[-10%] w-[700px] opacity-100 pointer-events-none select-none">
-        <img src="/src/assets/iires-logo-branca.png" alt="Logo" className="w-full h-auto opacity-10" />
+        <img src={iiresLogoBranca} alt="Logo" className="w-full h-auto opacity-10" />
       </div>
     </div>
   );

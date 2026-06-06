@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layout, Menu } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
+import iiresLogoBranca from '../assets/iires-logo-branca.png';
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -78,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         {/* Logo Fixa no Topo (shrink-0 impede que ela seja esmagada) */}
         <div className="shrink-0 flex items-center justify-center py-6 px-4">
           <img 
-            src="/src/assets/iires-logo-branca.png" 
+            src={iiresLogoBranca}
             alt="IIRes Logo" 
             className={`transition-all duration-300 ${collapsed ? 'w-8' : 'w-32'}`} 
           />
