@@ -40,7 +40,7 @@ export class ReportsController {
           include: { project: true, donor: true, partner: true }
         });
 
-        data = transactions.map(t => ({
+        data = transactions.map((t: any) => ({
           title:         t.title,
           type:          t.type === 'INCOME' ? 'Entrada' : 'Saída',
           amount:        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount),
@@ -75,7 +75,7 @@ export class ReportsController {
           orderBy: { name: 'asc' }
         });
 
-        data = donors.map(d => ({
+        data = donors.map((d: any) => ({
           id: d.id,
           name: d.name,
           document: d.document,
