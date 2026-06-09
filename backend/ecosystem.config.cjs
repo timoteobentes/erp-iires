@@ -1,9 +1,9 @@
 module.exports = {
   apps: [
     {
-      name: 'iires-api',
+      name: 'iires-system-api',
       script: 'dist/server.js',
-      cwd: '/var/www/iires/backend',
+      cwd: '/home/ubuntu/iires/erp-iires/backend',
       interpreter: 'node',
       instances: 1,
       exec_mode: 'fork',
