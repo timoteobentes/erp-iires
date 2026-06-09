@@ -27,8 +27,6 @@ const corsOptions: cors.CorsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Preflight OPTIONS deve ser respondido antes de qualquer outro middleware
-app.options('/(.*)', cors(corsOptions));
 app.use(cors(corsOptions));
 
 app.use(helmet());
