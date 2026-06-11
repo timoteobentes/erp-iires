@@ -14,8 +14,10 @@ export interface Project {
   budget?: number | null;
   progress?: number;
   manager?: { id: string; name: string } | null;
+  teamMembers?: { id: string; name: string }[];
   volunteers?: { id: string; name: string }[];
-  partners?: { id: string; name: string }[];
+  partners?: { id: string; name: string; partnershipType: string }[];
+  donors?: { id: string; name: string }[];
   createdAt?: string;
 }
 
@@ -26,8 +28,10 @@ export interface ProjectPayload {
   startDate?: string | null;
   endDate?: string | null;
   managerId?: string;
+  teamMemberIds?: string[];
   volunteerIds?: string[];
   partnerIds?: string[];
+  donorIds?: string[];
   budget?: number | null;
   progress?: number;
 }

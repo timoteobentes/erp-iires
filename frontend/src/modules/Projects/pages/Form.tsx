@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Form, Input, Button, DatePicker, Select, Row, Col, Card, Skeleton, notification, InputNumber, Slider } from 'antd';
-import { ArrowLeft, Briefcase, Users, AlignLeft, DollarSign } from 'lucide-react';
+import { ArrowLeft, Briefcase, Users, AlignLeft, DollarSign, Handshake } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { projectsService } from '../services/projects.service';
 import { teamService } from '../../People/services/team.service';
 import { volunteersService } from '../../People/services/volunteers.service';
+import { partnersService } from '../../People/services/partners.service';
+import { donorsService } from '../../People/services/donors.service';
 
 export default function ProjectForm() {
   const navigate = useNavigate();
@@ -15,34 +17,45 @@ export default function ProjectForm() {
 
   const [loadingData, setLoadingData] = useState(isEditing);
   const [submitting, setSubmitting] = useState(false);
-  const [teamOptions, setTeamOptions] = useState<{ value: string; label: string }[]>([]);
+  const [teamOptions, setTeamOptions]         = useState<{ value: string; label: string }[]>([]);
   const [volunteerOptions, setVolunteerOptions] = useState<{ value: string; label: string }[]>([]);
+  const [partnerOptions, setPartnerOptions]   = useState<{ value: string; label: string }[]>([]);
+  const [supplierOptions, setSupplierOptions] = useState<{ value: string; label: string }[]>([]);
+  const [donorOptions, setDonorOptions]       = useState<{ value: string; label: string }[]>([]);
 
   // --------------------------------------------------------
-  // Carrega membros da equipe e voluntários para os selects
+  // Carrega opções para todos os selects
   // --------------------------------------------------------
   useEffect(() => {
-    const fetchSelectOptions = async () => {
+    const fetchOptions = async () => {
       try {
-        const [teamData, volunteersData] = await Promise.all([
+        const [teamData, volunteersData, partnersData, donorsData] = await Promise.all([
           teamService.list(),
           volunteersService.list(),
+          partnersService.list(),
+          donorsService.list(),
         ]);
+
         setTeamOptions(
-          teamData
-            .filter((m) => m.status === 'active')
-            .map((m) => ({ value: m.id, label: m.name })),
+          teamData.filter((m) => m.status === 'active').map((m) => ({ value: m.id, label: m.name })),
         );
         setVolunteerOptions(
-          volunteersData
-            .filter((v) => v.status === 'active')
-            .map((v) => ({ value: v.id, label: v.name })),
+          volunteersData.filter((v) => v.status === 'active').map((v) => ({ value: v.id, label: v.name })),
+        );
+        setPartnerOptions(
+          partnersData.filter((p) => p.status === 'active' && p.partnershipType === 'Parceiro').map((p) => ({ value: p.id, label: p.name })),
+        );
+        setSupplierOptions(
+          partnersData.filter((p) => p.status === 'active' && p.partnershipType === 'Fornecedor').map((p) => ({ value: p.id, label: p.name })),
+        );
+        setDonorOptions(
+          donorsData.filter((d) => d.status === 'active').map((d) => ({ value: d.id, label: d.name })),
         );
       } catch {
         // silencia erro de carregamento de opções
       }
     };
-    fetchSelectOptions();
+    fetchOptions();
   }, []);
 
   // --------------------------------------------------------
@@ -63,8 +76,11 @@ export default function ProjectForm() {
           managerId: p.manager?.id ?? undefined,
           startDate: p.startDate ? dayjs(p.startDate) : undefined,
           endDate: p.endDate ? dayjs(p.endDate) : undefined,
+          teamMemberIds: (p.teamMembers ?? []).map((m) => m.id),
           volunteerIds: (p.volunteers ?? []).map((v) => v.id),
-          partnerIds: (p.partners ?? []).map((pt) => pt.id),
+          partnerTypeIds: (p.partners ?? []).filter((pt) => pt.partnershipType === 'Parceiro').map((pt) => pt.id),
+          supplierTypeIds: (p.partners ?? []).filter((pt) => pt.partnershipType === 'Fornecedor').map((pt) => pt.id),
+          donorIds: (p.donors ?? []).map((d) => d.id),
           budget: p.budget ?? undefined,
           progress: p.progress ?? 0,
         });
@@ -86,6 +102,11 @@ export default function ProjectForm() {
   // Submit
   // --------------------------------------------------------
   const onFinish = async (values: any) => {
+    const partnerIds = [
+      ...(values.partnerTypeIds ?? []),
+      ...(values.supplierTypeIds ?? []),
+    ];
+
     const payload = {
       name: values.name,
       description: values.description || '',
@@ -93,8 +114,10 @@ export default function ProjectForm() {
       managerId: values.managerId || undefined,
       startDate: values.startDate ? values.startDate.toISOString() : new Date().toISOString(),
       endDate: values.endDate ? values.endDate.toISOString() : null,
+      teamMemberIds: values.teamMemberIds ?? [],
       volunteerIds: values.volunteerIds ?? [],
-      partnerIds: values.partnerIds ?? [],
+      partnerIds,
+      donorIds: values.donorIds ?? [],
       budget: values.budget !== undefined && values.budget !== null ? Number(values.budget) : null,
       progress: values.progress ?? 0,
     };
@@ -253,11 +276,11 @@ export default function ProjectForm() {
           </Row>
         </Card>
 
-        {/* BLOCO 2: Equipe */}
+        {/* BLOCO 2: Membros do Projeto */}
         <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
           <div className="flex items-center gap-2 mb-6 text-dark-900">
             <Users size={20} className="text-secondary-500" />
-            <h2 className="text-lg font-bold">Equipe e Recursos</h2>
+            <h2 className="text-lg font-bold">Membros do Projeto</h2>
           </div>
 
           <Row gutter={24}>
@@ -278,9 +301,26 @@ export default function ProjectForm() {
               </Form.Item>
             </Col>
 
+            <Col xs={24} md={12}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Equipe Interna</span>}
+                name="teamMemberIds"
+              >
+                <Select
+                  mode="multiple"
+                  size="large"
+                  placeholder="Adicione membros da equipe interna"
+                  className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
+                  showSearch
+                  optionFilterProp="label"
+                  options={teamOptions}
+                />
+              </Form.Item>
+            </Col>
+
             <Col span={24}>
               <Form.Item
-                label={<span className="text-dark-600 font-medium">Voluntários do Projeto</span>}
+                label={<span className="text-dark-600 font-medium">Voluntários</span>}
                 name="volunteerIds"
               >
                 <Select
@@ -297,7 +337,68 @@ export default function ProjectForm() {
           </Row>
         </Card>
 
-        {/* BLOCO 3: Orçamento e Progresso */}
+        {/* BLOCO 3: Parceiros, Fornecedores e Doadores */}
+        <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
+          <div className="flex items-center gap-2 mb-6 text-dark-900">
+            <Handshake size={20} className="text-secondary-500" />
+            <h2 className="text-lg font-bold">Parceiros e Apoiadores</h2>
+          </div>
+
+          <Row gutter={24}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Parceiros</span>}
+                name="partnerTypeIds"
+              >
+                <Select
+                  mode="multiple"
+                  size="large"
+                  placeholder="Adicione parceiros ao projeto"
+                  className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
+                  showSearch
+                  optionFilterProp="label"
+                  options={partnerOptions}
+                />
+              </Form.Item>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Fornecedores</span>}
+                name="supplierTypeIds"
+              >
+                <Select
+                  mode="multiple"
+                  size="large"
+                  placeholder="Adicione fornecedores ao projeto"
+                  className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
+                  showSearch
+                  optionFilterProp="label"
+                  options={supplierOptions}
+                />
+              </Form.Item>
+            </Col>
+
+            <Col span={24}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Doadores</span>}
+                name="donorIds"
+              >
+                <Select
+                  mode="multiple"
+                  size="large"
+                  placeholder="Adicione doadores ao projeto"
+                  className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
+                  showSearch
+                  optionFilterProp="label"
+                  options={donorOptions}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* BLOCO 4: Orçamento e Progresso */}
         <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
           <div className="flex items-center gap-2 mb-6 text-dark-900">
             <DollarSign size={20} className="text-secondary-500" />
@@ -340,7 +441,7 @@ export default function ProjectForm() {
           </Row>
         </Card>
 
-        {/* BLOCO 4: Detalhamento */}
+        {/* BLOCO 5: Detalhamento */}
         <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
           <div className="flex items-center gap-2 mb-6 text-dark-900">
             <AlignLeft size={20} className="text-dark-400" />

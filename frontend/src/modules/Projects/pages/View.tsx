@@ -7,8 +7,9 @@ import {
   Users,
   Target,
   Clock,
-  MapPin,
   DollarSign,
+  Handshake,
+  Heart,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { projectsService, type Project } from '../services/projects.service';
@@ -18,12 +19,12 @@ import { projectsService, type Project } from '../services/projects.service';
 // ============================================================
 
 const statusConfig: Record<string, { text: string; classes: string }> = {
-  active: { text: 'Em Andamento', classes: 'bg-primary-50 text-primary-600 border-primary-200' },
-  planning: { text: 'Planejamento', classes: 'bg-blue-50 text-blue-600 border-blue-200' },
-  completed: { text: 'Concluído', classes: 'bg-secondary-50 text-secondary-600 border-secondary-200' },
-  blocked: { text: 'Bloqueado', classes: 'bg-red-50 text-red-600 border-red-200' },
-  draft: { text: 'Rascunho', classes: 'bg-dark-50 text-dark-400 border-dark-200' },
-  canceled: { text: 'Cancelado', classes: 'bg-dark-50 text-dark-400 border-dark-200' },
+  active:    { text: 'Em Andamento', classes: 'bg-primary-50 text-primary-600 border-primary-200' },
+  planning:  { text: 'Planejamento', classes: 'bg-blue-50 text-blue-600 border-blue-200' },
+  completed: { text: 'Concluído',    classes: 'bg-secondary-50 text-secondary-600 border-secondary-200' },
+  blocked:   { text: 'Bloqueado',    classes: 'bg-red-50 text-red-600 border-red-200' },
+  draft:     { text: 'Rascunho',     classes: 'bg-dark-50 text-dark-400 border-dark-200' },
+  canceled:  { text: 'Cancelado',    classes: 'bg-dark-50 text-dark-400 border-dark-200' },
 };
 
 const formatDate = (iso: string | null | undefined) => {
@@ -38,9 +39,6 @@ export default function ProjectView() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --------------------------------------------------------
-  // Busca o projeto pelo id
-  // --------------------------------------------------------
   useEffect(() => {
     if (!id) return;
 
@@ -60,9 +58,6 @@ export default function ProjectView() {
     fetchProject();
   }, [id, navigate]);
 
-  // --------------------------------------------------------
-  // Skeleton
-  // --------------------------------------------------------
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto space-y-6 pb-12">
@@ -98,8 +93,12 @@ export default function ProjectView() {
   if (!project) return null;
 
   const cfg = statusConfig[project.status] ?? { text: project.status, classes: 'bg-dark-50 text-dark-400 border-dark-200' };
-  const volunteers = project.volunteers ?? [];
-  const partners = project.partners ?? [];
+  const teamMembers = project.teamMembers ?? [];
+  const volunteers  = project.volunteers  ?? [];
+  const allMembers  = [...teamMembers, ...volunteers];
+  const partners    = (project.partners ?? []).filter((p) => p.partnershipType === 'Parceiro');
+  const suppliers   = (project.partners ?? []).filter((p) => p.partnershipType === 'Fornecedor');
+  const donors      = project.donors ?? [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
@@ -142,9 +141,9 @@ export default function ProjectView() {
           <Card className="rounded-2xl shadow-soft border-dark-100 h-full p-1" bodyStyle={{ padding: '20px' }}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-dark-400 text-xs font-bold uppercase tracking-wider mb-1">Voluntários</p>
-                <h3 className="text-2xl font-bold text-dark-900 leading-tight">{volunteers.length}</h3>
-                <p className="text-dark-400 text-xs mt-1 font-medium">Na equipe</p>
+                <p className="text-dark-400 text-xs font-bold uppercase tracking-wider mb-1">Membros</p>
+                <h3 className="text-2xl font-bold text-dark-900 leading-tight">{allMembers.length}</h3>
+                <p className="text-dark-400 text-xs mt-1 font-medium">No projeto</p>
               </div>
               <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-primary-50 text-primary-600">
                 <Users size={24} />
@@ -157,11 +156,11 @@ export default function ProjectView() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-dark-400 text-xs font-bold uppercase tracking-wider mb-1">Parceiros</p>
-                <h3 className="text-2xl font-bold text-dark-900 leading-tight">{partners.length}</h3>
-                <p className="text-dark-400 text-xs mt-1 font-medium">Institucionais</p>
+                <h3 className="text-2xl font-bold text-dark-900 leading-tight">{partners.length + suppliers.length}</h3>
+                <p className="text-dark-400 text-xs mt-1 font-medium">e fornecedores</p>
               </div>
               <div className="h-12 w-12 rounded-xl flex items-center justify-center bg-secondary-50 text-secondary-600">
-                <MapPin size={24} />
+                <Handshake size={24} />
               </div>
             </div>
           </Card>
@@ -235,16 +234,51 @@ export default function ProjectView() {
             )}
           </Card>
 
-          {partners.length > 0 && (
+          {(partners.length > 0 || suppliers.length > 0 || donors.length > 0) && (
             <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>
-              <h2 className="text-lg font-bold text-dark-900 mb-4">Parceiros e Fornecedores</h2>
-              <div className="flex flex-wrap gap-2">
-                {partners.map((p) => (
-                  <Tag key={p.id} className="rounded-full bg-secondary-50 text-secondary-700 border-secondary-200 font-bold px-3 py-1">
-                    {p.name}
-                  </Tag>
-                ))}
+              <div className="flex items-center gap-2 mb-4 text-dark-900">
+                <Handshake size={20} className="text-secondary-500" />
+                <h2 className="text-lg font-bold">Parceiros e Apoiadores</h2>
               </div>
+
+              {partners.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-bold text-dark-400 uppercase tracking-wider mb-2">Parceiros</p>
+                  <div className="flex flex-wrap gap-2">
+                    {partners.map((p) => (
+                      <Tag key={p.id} className="rounded-full bg-secondary-50 text-secondary-700 border-secondary-200 font-bold px-3 py-1">
+                        {p.name}
+                      </Tag>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {suppliers.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-bold text-dark-400 uppercase tracking-wider mb-2">Fornecedores</p>
+                  <div className="flex flex-wrap gap-2">
+                    {suppliers.map((s) => (
+                      <Tag key={s.id} className="rounded-full bg-blue-50 text-blue-700 border-blue-200 font-bold px-3 py-1">
+                        {s.name}
+                      </Tag>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {donors.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-dark-400 uppercase tracking-wider mb-2">Doadores</p>
+                  <div className="flex flex-wrap gap-2">
+                    {donors.map((d) => (
+                      <Tag key={d.id} className="rounded-full bg-green-50 text-green-700 border-green-200 font-bold px-3 py-1">
+                        {d.name}
+                      </Tag>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Card>
           )}
         </Col>
@@ -275,36 +309,67 @@ export default function ProjectView() {
             </div>
           </Card>
 
+          {/* Membros do Projeto */}
           <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '0' }}>
             <div className="p-5 border-b border-dark-100">
               <h3 className="text-base font-bold text-dark-900">
-                Equipe ({volunteers.length} voluntários)
+                Membros ({allMembers.length})
               </h3>
             </div>
-            {volunteers.length === 0 ? (
+            {allMembers.length === 0 ? (
               <div className="p-5 text-center text-dark-400 text-sm">
-                Nenhum voluntário vinculado.
+                Nenhum membro vinculado.
               </div>
             ) : (
               <div className="p-2 max-h-[300px] overflow-auto">
-                {volunteers.map((v, i) => (
+                {teamMembers.map((m) => (
+                  <div key={m.id} className="flex items-center gap-3 p-3 hover:bg-dark-50 rounded-xl transition-colors cursor-pointer group">
+                    <Avatar
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(m.name)}&backgroundColor=0047AF`}
+                      size="large"
+                      className="border border-dark-100 shadow-sm"
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-dark-900 group-hover:text-primary-600 transition-colors">{m.name}</p>
+                      <p className="text-xs text-dark-400 font-medium">Equipe interna</p>
+                    </div>
+                  </div>
+                ))}
+                {volunteers.map((v) => (
                   <div key={v.id} className="flex items-center gap-3 p-3 hover:bg-dark-50 rounded-xl transition-colors cursor-pointer group">
                     <Avatar
-                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(v.name)}&backgroundColor=0047AF`}
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(v.name)}&backgroundColor=026B11`}
                       size="large"
                       className="border border-dark-100 shadow-sm"
                     />
                     <div>
                       <p className="text-sm font-bold text-dark-900 group-hover:text-primary-600 transition-colors">{v.name}</p>
-                      <p className="text-xs text-dark-400 font-medium">
-                        {i === 0 ? 'Voluntário líder' : 'Voluntário'}
-                      </p>
+                      <p className="text-xs text-dark-400 font-medium">Voluntário</p>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </Card>
+
+          {donors.length > 0 && (
+            <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '24px' }}>
+              <div className="flex items-center gap-2 mb-4">
+                <Heart size={18} className="text-green-600" />
+                <h3 className="text-base font-bold text-dark-900">Doadores ({donors.length})</h3>
+              </div>
+              <div className="space-y-2">
+                {donors.map((d) => (
+                  <div key={d.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-dark-50 transition-colors">
+                    <div className="h-8 w-8 rounded-full bg-green-50 flex items-center justify-center text-green-600 text-xs font-bold shrink-0">
+                      {d.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-medium text-dark-800">{d.name}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </Col>
       </Row>
     </div>
