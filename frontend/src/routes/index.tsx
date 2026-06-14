@@ -26,12 +26,9 @@ import ReceivablesView from '../modules/Finance/pages/Receivables/ReceivablesVie
 import AccountPlansList from '../modules/Finance/pages/AccountPlans/AccountPlansList';
 import CostCentersList from '../modules/Finance/pages/CostCenters/CostCentersList';
 
-import TeamList from '../modules/People/pages/Team/TeamList';
-import TeamForm from '../modules/People/pages/Team/TeamForm';
-import TeamView from '../modules/People/pages/Team/TeamView';
-import VolunteersList from '../modules/People/pages/Volunteers/VolunteersList';
-import VolunteersForm from '../modules/People/pages/Volunteers/VolunteersForm';
-import VolunteersView from '../modules/People/pages/Volunteers/VolunteersView';
+import MembersList from '../modules/People/pages/Members/MembersList';
+import MembersForm from '../modules/People/pages/Members/MembersForm';
+import MembersView from '../modules/People/pages/Members/MembersView';
 import DonorsList from '../modules/People/pages/Donors/DonorsList';
 import DonorsForm from '../modules/People/pages/Donors/DonorsForm';
 import DonorsView from '../modules/People/pages/Donors/DonorsView';
@@ -81,15 +78,16 @@ export function AppRoutes() {
           <Route path="/finance/account-plans" element={<AccountPlansList />} />
           <Route path="/finance/cost-centers" element={<CostCentersList />} />
 
-          {/* Módulo Pessoas */}
-          <Route path="/people/team" element={<TeamList />} />
-          <Route path="/people/team/new" element={<TeamForm />} />
-          <Route path="/people/team/:id/edit" element={<TeamForm />} />
-          <Route path="/people/team/:id" element={<TeamView />} />
-          <Route path="/people/volunteers" element={<VolunteersList />} />
-          <Route path="/people/volunteers/new" element={<VolunteersForm />} />
-          <Route path="/people/volunteers/:id/edit" element={<VolunteersForm />} />
-          <Route path="/people/volunteers/:id" element={<VolunteersView />} />
+          {/* Módulo Pessoas — Colaboradores (unificado) */}
+          <Route path="/people/members" element={<MembersList />} />
+          <Route path="/people/members/new" element={<MembersForm />} />
+          <Route path="/people/members/:kind/:id/edit" element={<MembersForm />} />
+          <Route path="/people/members/:kind/:id" element={<MembersView />} />
+          {/* Redirects legados */}
+          <Route path="/people/team" element={<Navigate to="/people/members" replace />} />
+          <Route path="/people/team/*" element={<Navigate to="/people/members" replace />} />
+          <Route path="/people/volunteers" element={<Navigate to="/people/members" replace />} />
+          <Route path="/people/volunteers/*" element={<Navigate to="/people/members" replace />} />
           <Route path="/people/donors" element={<DonorsList />} />
           <Route path="/people/donors/new" element={<DonorsForm />} />
           <Route path="/people/donors/:id/edit" element={<DonorsForm />} />

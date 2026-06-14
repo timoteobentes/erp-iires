@@ -2,43 +2,35 @@ import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../../../config/prisma.js';
 
-// Gera uma senha temporária aleatória com pelo menos 1 maiúscula, 1 número e 1 símbolo
 const generateTempPassword = (): string => {
   const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const lower = 'abcdefghjkmnpqrstuvwxyz';
   const digits = '23456789';
   const rand = (str: string) => str.charAt(Math.floor(Math.random() * str.length));
-
-  // Garante ao menos 1 de cada grupo
-  const base =
-    rand(upper) +
-    rand(lower) +
-    rand(digits) +
-    rand(lower) +
-    rand(upper) +
-    rand(digits);
-
-  // Embaralha
+  const base = rand(upper) + rand(lower) + rand(digits) + rand(lower) + rand(upper) + rand(digits);
   return 'IIRes@' + base.split('').sort(() => Math.random() - 0.5).join('');
 };
 
+const SCALAR_FIELDS = [
+  'name', 'phone', 'rg', 'nationality', 'maritalStatus', 'role', 'level', 'group', 'bondType',
+  'pis', 'voterRegistration', 'cnpjNumber', 'bankName', 'bankAccount', 'bankAgency', 'pixKey',
+  'workHours',
+];
+
+const BOOL_FIELDS = ['hasCnpj', 'issuesInvoice'];
+
 export class TeamController {
 
-  // =========================================================
-  // 1. CRIAR NOVO MEMBRO DA EQUIPE
-  // =========================================================
   async create(req: Request, res: Response): Promise<void> {
     try {
       const data = req.body;
 
-      // Verifica se o e-mail já existe
       const existingByEmail = await prisma.user.findUnique({ where: { email: data.email } });
       if (existingByEmail) {
         res.status(400).json({ error: 'Já existe um colaborador com este e-mail.' });
         return;
       }
 
-      // Verifica CPF apenas se for fornecido
       if (data.cpf) {
         const existingByCpf = await prisma.user.findFirst({ where: { cpf: data.cpf } });
         if (existingByCpf) {
@@ -47,34 +39,50 @@ export class TeamController {
         }
       }
 
-      // Senha temporária aleatória
       const temporaryPassword = generateTempPassword();
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(temporaryPassword, salt);
+      const passwordHash = await bcrypt.hash(temporaryPassword, await bcrypt.genSalt(10));
 
-      // Só cria o endereço se o campo de logradouro foi preenchido
       const hasAddress = !!(data.address?.trim());
 
       const newMember = await prisma.user.create({
         data: {
-          name: data.name,
-          email: data.email,
+          name:          data.name,
+          email:         data.email,
           personalEmail: data.personal_email || null,
-          cpf: data.cpf || null,
-          phone: data.phone || null,
-          role: data.role || null,
-          level: data.level || null,
-          group: data.group || null,
+          cpf:           data.cpf   || null,
+          phone:         data.phone || null,
+          birthDate:     data.birthDate ? new Date(data.birthDate) : null,
+          rg:            data.rg           || null,
+          nationality:   data.nationality  || null,
+          maritalStatus: data.maritalStatus || null,
+          role:          data.role  || null,
+          level:         data.level || null,
+          group:         data.group || null,
+          bondType:      data.bondType || 'CLT',
+          // Financeiro / contrato
+          pis:              data.pis              || null,
+          voterRegistration:data.voterRegistration|| null,
+          hasCnpj:          data.hasCnpj          ?? null,
+          cnpjNumber:       data.cnpjNumber       || null,
+          issuesInvoice:    data.issuesInvoice     ?? null,
+          bankName:         data.bankName         || null,
+          bankAccount:      data.bankAccount      || null,
+          bankAgency:       data.bankAgency       || null,
+          pixKey:           data.pixKey           || null,
+          salary:           data.salary != null ? Number(data.salary) : null,
+          workDays:         data.workDays         || [],
+          workHours:        data.workHours        || null,
+          documents:        data.documents        ?? null,
           passwordHash,
           ...(hasAddress && {
             address: {
               create: {
-                cep: data.cep || '',
-                street: data.address,
-                number: data.number || '',
+                cep:          data.cep          || '',
+                street:       data.address,
+                number:       data.number       || '',
                 neighborhood: data.neighborhood || '',
-                city: data.city || '',
-                state: data.state || '',
+                city:         data.city         || '',
+                state:        data.state        || '',
               }
             }
           }),
@@ -82,20 +90,13 @@ export class TeamController {
         include: { address: true }
       });
 
-      res.status(201).json({
-        message: 'Colaborador cadastrado com sucesso!',
-        temporaryPassword, // retornado UMA VEZ para exibição ao admin
-        member: newMember
-      });
+      res.status(201).json({ message: 'Colaborador cadastrado com sucesso!', temporaryPassword, member: newMember });
     } catch (error) {
       console.error('Erro no Create Team:', error);
       res.status(500).json({ error: 'Erro ao criar colaborador.' });
     }
   }
 
-  // =========================================================
-  // 2. LISTAR TODA A EQUIPE
-  // =========================================================
   async list(req: Request, res: Response): Promise<void> {
     try {
       const { search, status, page, limit = '50' } = req.query as Record<string, string>;
@@ -104,18 +105,18 @@ export class TeamController {
       if (status) where.status = status;
       if (search) {
         where.OR = [
-          { name: { contains: search, mode: 'insensitive' } },
+          { name:  { contains: search, mode: 'insensitive' } },
           { email: { contains: search, mode: 'insensitive' } },
-          { role: { contains: search, mode: 'insensitive' } },
+          { role:  { contains: search, mode: 'insensitive' } },
         ];
       }
 
-      const select = { id: true, name: true, email: true, role: true, level: true, group: true, status: true };
+      const select = { id: true, name: true, email: true, role: true, level: true, group: true, bondType: true, status: true };
 
       if (page) {
-        const pageNum = Math.max(1, parseInt(page));
+        const pageNum  = Math.max(1, parseInt(page));
         const limitNum = Math.min(100, parseInt(limit));
-        const skip = (pageNum - 1) * limitNum;
+        const skip     = (pageNum - 1) * limitNum;
         const [data, total] = await Promise.all([
           prisma.user.findMany({ where, select, orderBy: { name: 'asc' }, skip, take: limitNum }),
           prisma.user.count({ where }),
@@ -132,9 +133,6 @@ export class TeamController {
     }
   }
 
-  // =========================================================
-  // 3. BUSCAR UM MEMBRO ESPECÍFICO
-  // =========================================================
   async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
@@ -142,18 +140,13 @@ export class TeamController {
       const member = await prisma.user.findUnique({
         where: { id },
         select: {
-          id: true,
-          name: true,
-          email: true,
-          personalEmail: true,
-          cpf: true,
-          phone: true,
-          role: true,
-          level: true,
-          group: true,
-          status: true,
-          createdAt: true,
-          address: true
+          id: true, name: true, email: true, personalEmail: true,
+          cpf: true, phone: true, birthDate: true, rg: true, nationality: true, maritalStatus: true,
+          role: true, level: true, group: true, bondType: true, status: true, createdAt: true,
+          pis: true, voterRegistration: true, hasCnpj: true, cnpjNumber: true, issuesInvoice: true,
+          bankName: true, bankAccount: true, bankAgency: true, pixKey: true, salary: true,
+          workDays: true, workHours: true, documents: true,
+          address: true,
         }
       });
 
@@ -169,9 +162,6 @@ export class TeamController {
     }
   }
 
-  // =========================================================
-  // 4. ATUALIZAR DADOS DO MEMBRO
-  // =========================================================
   async update(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
@@ -179,37 +169,28 @@ export class TeamController {
 
       const updateData: any = {};
 
-      const fields = ['name', 'email', 'phone', 'role', 'level', 'group'];
-      fields.forEach(field => {
+      SCALAR_FIELDS.forEach(field => {
         if (data[field] !== undefined) updateData[field] = data[field] || null;
       });
 
-      if (data.personal_email !== undefined) updateData.personalEmail = data.personal_email || null;
-      if (data.cpf !== undefined) updateData.cpf = data.cpf || null;
+      BOOL_FIELDS.forEach(field => {
+        if (data[field] !== undefined) updateData[field] = data[field] ?? null;
+      });
 
-      // Atualiza endereço somente se logradouro for fornecido
+      if (data.personal_email !== undefined) updateData.personalEmail = data.personal_email || null;
+      if (data.cpf       !== undefined) updateData.cpf       = data.cpf || null;
+      if (data.birthDate !== undefined) updateData.birthDate = data.birthDate ? new Date(data.birthDate) : null;
+      if (data.salary    !== undefined) updateData.salary    = data.salary != null ? Number(data.salary) : null;
+      if (data.workDays  !== undefined) updateData.workDays  = data.workDays || [];
+      if (data.documents !== undefined) updateData.documents = data.documents ?? null;
+
       const hasAddress = !!(data.address?.trim());
       if (hasAddress) {
-        updateData.address = {
-          upsert: {
-            create: {
-              cep: data.cep || '',
-              street: data.address,
-              number: data.number || '',
-              neighborhood: data.neighborhood || '',
-              city: data.city || '',
-              state: data.state || '',
-            },
-            update: {
-              cep: data.cep || '',
-              street: data.address,
-              number: data.number || '',
-              neighborhood: data.neighborhood || '',
-              city: data.city || '',
-              state: data.state || '',
-            }
-          }
+        const addrFields = {
+          cep: data.cep || '', street: data.address, number: data.number || '',
+          neighborhood: data.neighborhood || '', city: data.city || '', state: data.state || '',
         };
+        updateData.address = { upsert: { create: addrFields, update: addrFields } };
       }
 
       const updatedMember = await prisma.user.update({
@@ -225,18 +206,10 @@ export class TeamController {
     }
   }
 
-  // =========================================================
-  // 5. INATIVAR MEMBRO (Soft Delete)
-  // =========================================================
   async inactivate(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
-
-      await prisma.user.update({
-        where: { id },
-        data: { status: 'inactive' }
-      });
-
+      await prisma.user.update({ where: { id }, data: { status: 'inactive' } });
       res.status(200).json({ message: 'Colaborador inativado com sucesso. Acesso ao sistema revogado.' });
     } catch (error) {
       console.error('Erro no Inactivate Team:', error);

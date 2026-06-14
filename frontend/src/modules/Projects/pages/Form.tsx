@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ptBR from 'antd/locale/pt_BR';
 import { Form, Input, Button, DatePicker, Select, Row, Col, Card, Skeleton, notification, InputNumber, Slider } from 'antd';
 import { ArrowLeft, Briefcase, Users, AlignLeft, DollarSign, Handshake } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -255,6 +256,7 @@ export default function ProjectForm() {
                   size="large"
                   className="w-full rounded-xl hover:border-secondary-400 focus:border-secondary-500"
                   format="DD/MM/YYYY"
+                  locale={ptBR.DatePicker}
                   placeholder="Selecione a data"
                 />
               </Form.Item>
@@ -269,6 +271,7 @@ export default function ProjectForm() {
                   size="large"
                   className="w-full rounded-xl hover:border-secondary-400 focus:border-secondary-500"
                   format="DD/MM/YYYY"
+                  locale={ptBR.DatePicker}
                   placeholder="Selecione a data"
                 />
               </Form.Item>

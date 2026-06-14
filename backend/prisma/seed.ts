@@ -38,9 +38,10 @@ async function main() {
       name:         'Timóteo Bentes (Admin)',
       email:        'admin@iires.org',
       passwordHash,
-      role:         'Admin',
-      level:        'Diretoria',
-      group:        'Gestão',
+      role:         'Administrador',
+      level:        'Diretor',
+      group:        'Administrador',
+      bondType:     'CLT',
       status:       'active',
     },
   });
@@ -77,7 +78,7 @@ async function main() {
   console.log('══════════════════════════════════════');
   console.log('  E-mail : admin@iires.org');
   console.log('  Senha  : Admin2026!');
-  console.log('  Perfil : Admin · Diretoria');
+  console.log('  Perfil : Administrador · Diretor (acesso total)');
   console.log('══════════════════════════════════════\n');
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ptBR from 'antd/locale/pt_BR';
 import { Form, Input, Button, Select, Card, Row, Col, Divider, DatePicker, Checkbox, Skeleton, notification } from 'antd';
 import { ArrowLeft, User, MapPin, Star, PhoneCall, ShieldCheck, Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -169,6 +170,7 @@ export default function VolunteersForm() {
                   size="large"
                   className="w-full rounded-xl"
                   format="DD/MM/YYYY"
+                  locale={ptBR.DatePicker}
                   placeholder="DD/MM/AAAA"
                 />
               </Form.Item>

@@ -1,17 +1,7 @@
 import { api } from '../../../api/api';
 
-// ============================================================
-// TIPOS
-// ============================================================
-
 export interface TeamMemberAddress {
-  id: string;
-  cep: string;
-  street: string;
-  number: string;
-  neighborhood: string;
-  city: string;
-  state: string;
+  id: string; cep: string; street: string; number: string; neighborhood: string; city: string; state: string;
 }
 
 export interface TeamMember {
@@ -21,35 +11,67 @@ export interface TeamMember {
   personalEmail?: string | null;
   cpf?: string | null;
   phone?: string | null;
+  birthDate?: string | null;
+  rg?: string | null;
+  nationality?: string | null;
+  maritalStatus?: string | null;
   role?: string | null;
   level?: string | null;
   group?: string | null;
+  bondType?: string;
   status: string;
   createdAt?: string;
+  // Financeiro / contrato
+  pis?: string | null;
+  voterRegistration?: string | null;
+  hasCnpj?: boolean | null;
+  cnpjNumber?: string | null;
+  issuesInvoice?: boolean | null;
+  bankName?: string | null;
+  bankAccount?: string | null;
+  bankAgency?: string | null;
+  pixKey?: string | null;
+  salary?: number | null;
+  workDays?: string[];
+  workHours?: string | null;
+  documents?: any[] | null;
   address?: TeamMemberAddress | null;
 }
 
-// Payload enviado ao backend (snake_case para address = padrão do controller)
 export interface TeamMemberPayload {
   name: string;
   email: string;
   personal_email?: string;
   cpf?: string;
   phone?: string;
-  role?: string;   // opcional — só nome, email e grupo são obrigatórios
+  birthDate?: string | null;
+  rg?: string;
+  nationality?: string;
+  maritalStatus?: string;
+  role?: string;
   level?: string;
   group?: string;
+  bondType?: string;
+  pis?: string;
+  voterRegistration?: string;
+  hasCnpj?: boolean;
+  cnpjNumber?: string;
+  issuesInvoice?: boolean;
+  bankName?: string;
+  bankAccount?: string;
+  bankAgency?: string;
+  pixKey?: string;
+  salary?: number | null;
+  workDays?: string[];
+  workHours?: string;
+  documents?: any[];
   cep?: string;
-  address?: string; // → backend mapeia para street
+  address?: string;
   number?: string;
   neighborhood?: string;
   city?: string;
   state?: string;
 }
-
-// ============================================================
-// SERVICE
-// ============================================================
 
 export const teamService = {
   async list(): Promise<TeamMember[]> {
@@ -67,10 +89,7 @@ export const teamService = {
     return response.data;
   },
 
-  async update(
-    id: string,
-    data: Partial<TeamMemberPayload>,
-  ): Promise<{ message: string; member: TeamMember }> {
+  async update(id: string, data: Partial<TeamMemberPayload>): Promise<{ message: string; member: TeamMember }> {
     const response = await api.put(`/team/${id}`, data);
     return response.data;
   },

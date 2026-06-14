@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ptBR from 'antd/locale/pt_BR';
 import {
   Form, Input, Button, DatePicker, Select, Card, Row, Col,
   Skeleton, notification, InputNumber, Upload, Divider,
@@ -280,7 +281,7 @@ export default function PayablesForm() {
             <Col xs={24} md={12}>
               <Form.Item label={<span className="font-bold text-dark-600">Data de Vencimento</span>} name="date"
                 rules={[{ required: true, message: 'Informe a data' }]}>
-                <DatePicker size="large" className="w-full rounded-xl" format="DD/MM/YYYY" />
+                <DatePicker size="large" className="w-full rounded-xl" format="DD/MM/YYYY" locale={ptBR.DatePicker} />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -373,7 +374,7 @@ export default function PayablesForm() {
                 <Col xs={24} md={12}>
                   <Form.Item label={<span className="font-bold text-dark-600">Data de Término (opcional)</span>} name="recurrenceEndDate">
                     <DatePicker size="large" className="w-full rounded-xl" format="DD/MM/YYYY"
-                      placeholder="Sem data fim → gera 12 meses" />
+                      locale={ptBR.DatePicker} placeholder="Sem data fim → gera 12 meses" />
                   </Form.Item>
                 </Col>
               </Row>

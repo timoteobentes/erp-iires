@@ -15,6 +15,20 @@ declare global {
   }
 }
 
+export function requireGroups(...groups: string[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Não autenticado.' });
+      return;
+    }
+    if (!groups.includes(req.user.group)) {
+      res.status(403).json({ error: 'Acesso negado. Permissão insuficiente para este recurso.' });
+      return;
+    }
+    next();
+  };
+}
+
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Pega o token do cabeçalho de Autorização
   const authHeader = req.headers.authorization;

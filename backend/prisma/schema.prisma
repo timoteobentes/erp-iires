@@ -52,12 +52,16 @@ model User {
   passwordHash  String
 
   // Campos que preencheremos depois no módulo de Equipe, deixaremos opcionais por enquanto
-  cpf    String? @unique
-  phone  String?
-  role   String?
-  level  String?
-  group  String?
-  status String  @default("active")
+  cpf           String?   @unique
+  phone         String?
+  birthDate     DateTime?
+  rg            String?
+  nationality   String?
+  maritalStatus String?
+  role          String?
+  level         String?
+  group         String?
+  status        String    @default("active")
 
   address Address?
 
@@ -69,6 +73,26 @@ model User {
   refreshToken        String?   @unique
   refreshTokenExpires DateTime?
 
+  // Tipo de vínculo com a organização
+  bondType            String   @default("CLT") // CLT | Prestador | Estágio | Voluntário
+
+  // Dados financeiros / pagamento
+  pis               String?
+  voterRegistration String?   // CLT — Título de Eleitor
+  hasCnpj           Boolean?  // Prestador — possui CNPJ
+  cnpjNumber        String?   // Prestador — CNPJ
+  issuesInvoice     Boolean?  // Prestador — emite nota fiscal
+  bankName          String?
+  bankAccount       String?
+  bankAgency        String?
+  pixKey            String?
+  salary            Float?
+  // Jornada (Estágio)
+  workDays          String[]
+  workHours         String?
+  // Documentos anexados (JSON array de {name, type, size, data})
+  documents         Json?
+
   // CONFIGURAÇÃO DO AVATAR (JSON com as opções escolhidas no editor)
   avatarConfig        String?
 
@@ -77,6 +101,9 @@ model User {
 
   // Projetos como membro da equipe
   teamProjects    Project[] @relation("ProjectTeamMembers")
+
+  // Voluntários supervisionados
+  supervisedVolunteers Volunteer[] @relation("VolunteerSupervisor")
 
   // Notificações
   notifications Notification[]
@@ -101,16 +128,39 @@ model Volunteer {
   skills         String[]  // Array nativo no Postgres
   availability   String?   // Manhã, Tarde, Noite, Flexível
   
+  // Documentação complementar para o Termo de Adesão
+  rg            String?   // Registro Geral (identidade)
+  nationality   String?   // Nacionalidade (ex: brasileiro)
+  maritalStatus String?   // Estado civil
+  services      String?   @db.Text // Atividades/serviços a serem desenvolvidos
+  schedule      String?   // Período e horário do voluntariado
+
+  // Cargo / perfil organizacional
+  role          String?
+  level         String?
+  group         String?
+
+  // Jornada estruturada
+  workDays      String[]
+  workHours     String?
+
+  // Documentos
+  documents     Json?
+
+  // Supervisor responsável pelo voluntário
+  supervisorId  String?
+  supervisor    User?     @relation("VolunteerSupervisor", fields: [supervisorId], references: [id])
+
   // Emergência e Jurídico
   emergencyName  String?
   emergencyPhone String?
   acceptedTerms  Boolean   @default(false)
   status         String    @default("active")
-  
+
   // Métricas (Poderão ser atualizadas por triggers ou funções depois)
   hoursDonated   Int       @default(0)
   activeProjects Int       @default(0)
-  
+
   // O link com a nossa tabela universal de Endereços
   address        Address?
 

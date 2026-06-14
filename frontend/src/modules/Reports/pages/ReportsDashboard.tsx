@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Dayjs } from 'dayjs';
+import ptBR from 'antd/locale/pt_BR';
 import { Card, Row, Col, Button, Select, DatePicker, Divider, message, Modal, Input, Tag } from 'antd';
 import {
   FileText,
@@ -242,6 +243,7 @@ export default function ReportsDashboard() {
                     size="large"
                     className="w-full rounded-xl"
                     format="DD/MM/YYYY"
+                    locale={ptBR.DatePicker}
                     placeholder={['Data Inicial', 'Data Final']}
                     value={dateRange}
                     onChange={(dates) => setDateRange(dates as [Dayjs, Dayjs] | null)}
