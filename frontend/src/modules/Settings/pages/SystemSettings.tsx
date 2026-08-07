@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Card, Row, Col, Button, Input, Form, Select, message, Table, Tag, Modal, Popconfirm, Tooltip, Empty } from 'antd';
-import { Building2, ShieldCheck, Users, UserPlus, Trash2 } from 'lucide-react';
+import { Building2, ShieldCheck, Users, UserPlus, Trash2, CreditCard, ExternalLink } from 'lucide-react';
 import { SESSION_TIMEOUT_KEY } from '../../../hooks/useInactivityTimer';
 import { organizationService } from '../services/organization.service';
 import { membershipsService, rolesService, type Membership, type Role } from '../services/memberships.service';
 import { invitesService, type Invite } from '../services/invites.service';
+import { billingService, type Subscription, type Invoice } from '../services/billing.service';
 import { usePermission } from '../../Auth/hooks/usePermission';
+
+const SUBSCRIPTION_STATUS: Record<string, { text: string; color: string }> = {
+  TRIALING: { text: 'Período de Teste', color: 'blue' },
+  ACTIVE: { text: 'Ativa', color: 'green' },
+  PAST_DUE: { text: 'Pagamento em Atraso', color: 'orange' },
+  SUSPENDED: { text: 'Suspensa', color: 'red' },
+  CANCELED: { text: 'Cancelada', color: 'default' },
+};
 
 const LEGAL_NATURES = [
   { value: 'ASSOCIACAO', label: 'Associação' },
@@ -121,9 +130,40 @@ export default function SystemSettings() {
     }
   };
 
+  // ── Assinatura ───────────────────────────────────────────────
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [pendingInvoice, setPendingInvoice] = useState<Invoice | null>(null);
+  const [loadingBilling, setLoadingBilling] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'billing') return;
+    setLoadingBilling(true);
+    billingService.getSubscription()
+      .then(({ subscription, pendingInvoice }) => {
+        setSubscription(subscription);
+        setPendingInvoice(pendingInvoice);
+      })
+      .catch(() => message.error('Não foi possível carregar sua assinatura.'))
+      .finally(() => setLoadingBilling(false));
+  }, [activeTab]);
+
+  const handleCheckout = async () => {
+    setCheckingOut(true);
+    try {
+      const { checkoutUrl } = await billingService.checkout();
+      window.open(checkoutUrl, '_blank', 'noopener');
+    } catch (error: any) {
+      message.error(error.response?.data?.error || 'Não foi possível gerar a cobrança.');
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
   const menuItems = [
     { key: 'general', icon: <Building2 size={20} />, label: 'Dados da Instituição', desc: 'Informações da organização' },
     { key: 'users', icon: <Users size={20} />, label: 'Usuários', desc: 'Convites, papéis e acessos' },
+    { key: 'billing', icon: <CreditCard size={20} />, label: 'Minha Assinatura', desc: 'Plano, status e pagamento' },
     { key: 'security', icon: <ShieldCheck size={20} />, label: 'Segurança & Acessos', desc: 'Regras de sessão' },
   ];
 
@@ -341,6 +381,87 @@ export default function SystemSettings() {
                   </Form.Item>
                 </Form>
               </Modal>
+            </Card>
+          )}
+
+          {activeTab === 'billing' && (
+            <Card className="rounded-2xl shadow-soft border-dark-100" styles={{ body: { padding: 0 } }} loading={loadingBilling}>
+              <div className="p-6 border-b border-dark-100">
+                <h2 className="text-xl font-bold text-dark-900">Minha Assinatura</h2>
+                <p className="text-sm text-dark-500 mt-1">Plano atual e pagamento da sua organização.</p>
+              </div>
+
+              {!loadingBilling && !subscription && (
+                <div className="p-6">
+                  <Empty description="Esta organização ainda não tem uma assinatura." />
+                </div>
+              )}
+
+              {subscription && (
+                <div className="p-6 space-y-6">
+                  <div className="flex items-start justify-between flex-wrap gap-4">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-bold text-dark-900">Plano {subscription.plan.name}</h3>
+                        <Tag color={SUBSCRIPTION_STATUS[subscription.status]?.color}>
+                          {SUBSCRIPTION_STATUS[subscription.status]?.text ?? subscription.status}
+                        </Tag>
+                      </div>
+                      {subscription.plan.tagline && (
+                        <p className="text-sm text-dark-400 mt-1">{subscription.plan.tagline}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-dark-900">
+                        R$ {Number(subscription.interval === 'YEARLY' ? subscription.plan.priceYearly : subscription.plan.priceMonthly).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-dark-400">{subscription.interval === 'YEARLY' ? 'por ano' : 'por mês'}</p>
+                    </div>
+                  </div>
+
+                  {subscription.status === 'TRIALING' && subscription.trialEndsAt && (
+                    <p className="text-sm text-dark-500">
+                      Seu período de teste termina em{' '}
+                      <strong className="text-dark-900">{new Date(subscription.trialEndsAt).toLocaleDateString('pt-BR')}</strong>.
+                    </p>
+                  )}
+
+                  {subscription.currentPeriodEnd && (
+                    <p className="text-sm text-dark-500">
+                      Período atual válido até{' '}
+                      <strong className="text-dark-900">{new Date(subscription.currentPeriodEnd).toLocaleDateString('pt-BR')}</strong>.
+                    </p>
+                  )}
+
+                  {pendingInvoice && (
+                    <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+                      <div>
+                        <p className="font-bold text-dark-900">
+                          Fatura em aberto — R$ {Number(pendingInvoice.amount).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-dark-500">
+                          Vencimento: {new Date(pendingInvoice.dueDate).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <Button
+                        type="primary" icon={<ExternalLink size={16} />} loading={checkingOut}
+                        onClick={handleCheckout} className="rounded-xl font-bold"
+                      >
+                        Pagar agora
+                      </Button>
+                    </div>
+                  )}
+
+                  {!pendingInvoice && (
+                    <Button
+                      icon={<CreditCard size={16} />} loading={checkingOut}
+                      onClick={handleCheckout} className="rounded-xl font-bold"
+                    >
+                      Gerar cobrança do próximo período
+                    </Button>
+                  )}
+                </div>
+              )}
             </Card>
           )}
 

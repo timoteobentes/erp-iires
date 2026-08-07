@@ -16,6 +16,8 @@ import membershipsRoutes from './modules/Organizations/memberships.routes.js';
 import rolesRoutes from './modules/Organizations/roles.routes.js';
 import invitesRoutes from './modules/Organizations/invites.routes.js';
 import attachmentsRoutes from './modules/Attachments/attachments.routes.js';
+import billingRoutes from './modules/Billing/billing.routes.js';
+import { infinitePayWebhook } from './modules/Billing/webhook.controller.js';
 
 const routes = Router();
 
@@ -36,5 +38,8 @@ routes.use('/memberships', membershipsRoutes);
 routes.use('/roles', rolesRoutes);
 routes.use('/invites', invitesRoutes);
 routes.use('/attachments', attachmentsRoutes);
+routes.use('/billing', billingRoutes);
+// Fora do authMiddleware/contexto de tenant — a InfinitePay chama isto direto.
+routes.post('/webhooks/infinitepay', infinitePayWebhook);
 
 export default routes;

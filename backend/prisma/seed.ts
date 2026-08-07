@@ -27,6 +27,7 @@ async function main() {
   await prisma.invite.deleteMany({});
   await prisma.role.deleteMany({});
   await prisma.organization.deleteMany({});
+  await prisma.plan.deleteMany({});
   await prisma.refreshToken.deleteMany({});
   await prisma.user.deleteMany({});
 
@@ -134,6 +135,83 @@ async function main() {
     codeToId.set(plan.code, created.id);
     console.log(`  ✅ ${plan.code.padEnd(5)} ${plan.name}`);
   }
+
+  // ── Planos de assinatura (SaaS) ───────────────────────────────
+  // Preços e limites vêm de docs/PLANOS_E_PRECOS.md §2-3. "Rede" é sob
+  // consulta (sem preço público) — fica marcado como não-público.
+  console.log('\n💳 Criando planos de assinatura...');
+
+  const SUBSCRIPTION_PLANS = [
+    {
+      code: 'essencial', name: 'Essencial', tagline: 'Para institutos que ainda vivem em planilhas.',
+      priceMonthly: 49.9, priceYearly: 499.0,
+      maxUsers: 3, maxActiveProjects: 5, maxPersons: 500, storageMb: 2048,
+      features: ['people.base', 'projects.base', 'finance.base', 'reports.base'],
+      isPublic: true, sortOrder: 1,
+    },
+    {
+      code: 'gestao', name: 'Gestão', tagline: 'Para quem presta contas a financiadores.',
+      priceMonthly: 149.9, priceYearly: 1499.0,
+      maxUsers: 15, maxActiveProjects: 50, maxPersons: null, storageMb: 20_480,
+      features: [
+        'people.base', 'projects.base', 'finance.base', 'reports.base',
+        'roles.custom', 'finance.account_plans', 'finance.cost_centers',
+        'finance.by_project', 'finance.budget', 'finance.recurring',
+        'attachments', 'documents.generate', 'reports.advanced', 'audit.log',
+      ],
+      isPublic: true, sortOrder: 2,
+    },
+    {
+      code: 'institucional', name: 'Institucional', tagline: 'Para institutos com portfólio, núcleos ou programas.',
+      priceMonthly: 399.9, priceYearly: 3999.0,
+      maxUsers: 50, maxActiveProjects: null, maxPersons: null, storageMb: 102_400,
+      features: [
+        'people.base', 'projects.base', 'finance.base', 'reports.base',
+        'roles.custom', 'finance.account_plans', 'finance.cost_centers',
+        'finance.by_project', 'finance.budget', 'finance.recurring',
+        'attachments', 'documents.generate', 'reports.advanced', 'audit.log',
+        'contexts', 'multi_unit', 'public_portal', 'branding.custom',
+        'api.access', 'auth.sso', 'data.import',
+      ],
+      isPublic: true, sortOrder: 3,
+    },
+    {
+      code: 'rede', name: 'Rede', tagline: 'Para federações, redes de institutos e aceleradoras — sob consulta.',
+      priceMonthly: 0, priceYearly: 0,
+      maxUsers: null, maxActiveProjects: null, maxPersons: null, storageMb: null,
+      features: [
+        'people.base', 'projects.base', 'finance.base', 'reports.base',
+        'roles.custom', 'finance.account_plans', 'finance.cost_centers',
+        'finance.by_project', 'finance.budget', 'finance.recurring',
+        'attachments', 'documents.generate', 'reports.advanced', 'audit.log',
+        'contexts', 'multi_unit', 'public_portal', 'branding.custom',
+        'api.access', 'auth.sso', 'data.import', 'multi_org',
+      ],
+      isPublic: false, sortOrder: 4,
+    },
+  ];
+
+  const planByCode: Record<string, { id: string }> = {};
+  for (const p of SUBSCRIPTION_PLANS) {
+    planByCode[p.code] = await prisma.plan.create({ data: p });
+    console.log(`  ✅ ${p.name} — R$ ${p.priceMonthly}/mês`);
+  }
+
+  // IIRES é o cliente zero — cortesia de cliente fundador no plano Institucional,
+  // sem cobrança (ver docs/PLANOS_E_PRECOS.md §7, decisão em aberto resolvida
+  // a favor da cortesia por enquanto).
+  await prisma.subscription.create({
+    data: {
+      organizationId: org.id,
+      planId: planByCode.institucional.id,
+      status: 'ACTIVE',
+      interval: 'MONTHLY',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date('2099-12-31'),
+      gateway: 'infinitepay',
+    },
+  });
+  console.log('  ✅ Assinatura cortesia (Institucional) atribuída ao IIRES.\n');
 
   console.log('\n🎉 Banco de dados pronto para uso!');
   console.log('══════════════════════════════════════');

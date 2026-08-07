@@ -12,6 +12,7 @@ const TENANT_MODELS = new Set([
   'Role',
   'Invite',
   'Member',
+  'Subscription',
   'Person',
   'Project',
   'ProjectMember',

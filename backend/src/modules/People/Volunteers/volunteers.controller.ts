@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { tenantPrisma as prisma } from '../../../core/prisma/tenant-client.js';
+import { getContext } from '../../../core/context/request-context.js';
 import { respondError } from '../../../shared/utils/respond-error.js';
 import { generateVolunteerTermoPDF } from './termo.service.js';
 
@@ -185,7 +186,13 @@ export class VolunteersController {
         return;
       }
 
-      const pdfBuffer = await generateVolunteerTermoPDF(volunteer);
+      const organization = await prisma.organization.findUnique({ where: { id: getContext().organizationId } });
+      if (!organization) {
+        res.status(404).json({ error: 'Organização não encontrada.' });
+        return;
+      }
+
+      const pdfBuffer = await generateVolunteerTermoPDF(volunteer, organization);
 
       const safeName = volunteer.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       res.setHeader('Content-Type', 'application/pdf');

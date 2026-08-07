@@ -18,6 +18,19 @@ interface VolunteerTermoData {
   supervisor?: { name: string } | null;
 }
 
+interface EntityTermoData {
+  legalName: string;
+  document: string;
+  street?: string | null;
+  number?: string | null;
+  neighborhood?: string | null;
+  zipCode?: string | null;
+  city?: string | null;
+  state?: string | null;
+  legalRepName?: string | null;
+  legalRepRole?: string | null;
+}
+
 const blank = '_______________';
 
 function fmt(value: string | null | undefined, fallback = blank): string {
@@ -31,6 +44,25 @@ function formatCEP(cep: string | null | undefined): string {
   return cep;
 }
 
+function formatCNPJ(document: string | null | undefined): string {
+  if (!document) return blank;
+  const digits = document.replace(/\D/g, '');
+  if (digits.length === 14) {
+    return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  }
+  return document;
+}
+
+function entityAddress(entity: EntityTermoData): string {
+  const parts = [
+    fmt(entity.street),
+    entity.number ? `nº ${fmt(entity.number)}` : null,
+    entity.neighborhood ? `bairro ${fmt(entity.neighborhood)}` : null,
+    entity.city && entity.state ? `${fmt(entity.city)}/${fmt(entity.state)}` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(', ') : blank;
+}
+
 function sectionTitle(doc: InstanceType<typeof PDFDocument>, text: string) {
   doc.moveDown(0.8).font('Helvetica-Bold').fontSize(10).text(text, { align: 'left' }).moveDown(0.3);
 }
@@ -39,7 +71,7 @@ function body(doc: InstanceType<typeof PDFDocument>, text: string) {
   doc.font('Helvetica').fontSize(10).text(text, { align: 'justify', lineGap: 2 }).moveDown(0.6);
 }
 
-export async function generateVolunteerTermoPDF(volunteer: VolunteerTermoData): Promise<Buffer> {
+export async function generateVolunteerTermoPDF(volunteer: VolunteerTermoData, entity: EntityTermoData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 70, size: 'A4' });
     const buffers: Buffer[] = [];
@@ -62,10 +94,9 @@ export async function generateVolunteerTermoPDF(volunteer: VolunteerTermoData): 
     doc
       .font('Helvetica-Bold').fontSize(10).text('ENTIDADE: ', { continued: true })
       .font('Helvetica').fontSize(10).text(
-        'Instituto de Inovação e Responsabilidade Social da Amazônia - IIRES, com sede em Manaus, ' +
-        'na Av. Governador Danilo Matos Areosa nº 160, sala 11, bairro Distrito Industrial I, ' +
-        'CEP: 69.075-351, inscrito no CNPJ sob o nº 10.441.981/0001-66, representada, neste ato, ' +
-        'por seu Presidente, Adm. Rafael Veiga Paixão, brasileiro, solteiro, advogado, CPF nº 977.320.442-15.',
+        `${fmt(entity.legalName)}, com sede em ${entityAddress(entity)}, ` +
+        `CEP: ${formatCEP(entity.zipCode)}, inscrito no CNPJ sob o nº ${formatCNPJ(entity.document)}, ` +
+        `representada, neste ato, por ${fmt(entity.legalRepName)}${entity.legalRepRole ? `, ${fmt(entity.legalRepRole)}` : ''}.`,
         { align: 'justify', lineGap: 2 }
       )
       .moveDown(1);
@@ -153,7 +184,7 @@ export async function generateVolunteerTermoPDF(volunteer: VolunteerTermoData): 
     sectionTitle(doc, 'DO FORO');
     body(doc,
       'Cláusula 9ª. Para dirimir quaisquer controvérsias oriundas deste termo de adesão, as partes ' +
-      'elegem o foro da comarca de Manaus, Estado do Amazonas.'
+      `elegem o foro da comarca de ${fmt(entity.city)}, Estado de ${fmt(entity.state)}.`
     );
 
     // ── Fecho ────────────────────────────────────────────────────
@@ -172,7 +203,7 @@ export async function generateVolunteerTermoPDF(volunteer: VolunteerTermoData): 
       month: 'long',
       year: 'numeric',
     });
-    doc.text(`Manaus, ${dateStr}.`).moveDown(2.5);
+    doc.text(`${fmt(entity.city)}, ${dateStr}.`).moveDown(2.5);
 
     // ── Assinaturas (3 colunas) ────────────────────────────────
     const lineWidth = 160;
@@ -192,7 +223,7 @@ export async function generateVolunteerTermoPDF(volunteer: VolunteerTermoData): 
 
     drawSig(col1, 'Supervisor', fmt(volunteer.supervisor?.name, blank));
     drawSig(col2, 'Voluntário', volunteer.name);
-    drawSig(col3, 'Representante Legal da Entidade', 'Rafael Veiga Paixão');
+    drawSig(col3, 'Representante Legal da Entidade', fmt(entity.legalRepName));
 
     // ── Notas de rodapé ──────────────────────────────────────────
     doc

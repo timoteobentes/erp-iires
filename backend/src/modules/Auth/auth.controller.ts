@@ -71,6 +71,23 @@ export class AuthController {
           },
         });
 
+        const trialPlan = await tx.plan.findUnique({ where: { code: 'essencial' } });
+        if (trialPlan) {
+          const trialEndsAt = new Date();
+          trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+          await tx.subscription.create({
+            data: {
+              organizationId: organization.id,
+              planId: trialPlan.id,
+              status: 'TRIALING',
+              interval: 'MONTHLY',
+              trialEndsAt,
+              currentPeriodStart: new Date(),
+              currentPeriodEnd: trialEndsAt,
+            },
+          });
+        }
+
         let ownerRole = null;
         for (const r of DEFAULT_ROLES) {
           const role = await tx.role.create({
