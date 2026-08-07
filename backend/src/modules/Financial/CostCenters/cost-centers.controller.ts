@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
-import prisma from '../../../config/prisma.js';
+import { tenantPrisma as prisma } from '../../../core/prisma/tenant-client.js';
+import { respondError } from '../../../shared/utils/respond-error.js';
 
 export class CostCentersController {
 
@@ -12,8 +13,7 @@ export class CostCentersController {
       const centers = await prisma.costCenter.findMany({ where, orderBy: { code: 'asc' } });
       res.json({ costCenters: centers });
     } catch (error) {
-      console.error('Erro ao listar centros de custo:', error);
-      res.status(500).json({ error: 'Erro interno.' });
+      respondError(res, error, 'Erro ao listar centros de custo.');
     }
   }
 
@@ -23,8 +23,7 @@ export class CostCentersController {
       if (!center) { res.status(404).json({ error: 'Centro de custo não encontrado.' }); return; }
       res.json(center);
     } catch (error) {
-      console.error('Erro ao buscar centro de custo:', error);
-      res.status(500).json({ error: 'Erro interno.' });
+      respondError(res, error, 'Erro ao buscar centro de custo.');
     }
   }
 
@@ -47,12 +46,12 @@ export class CostCentersController {
       }
       const code = `CC-${String(nextNum).padStart(2, '0')}`;
 
-      const center = await prisma.costCenter.create({ data: { code, name, description: description ?? null } });
+      // organizationId é injetado automaticamente pelo tenantPrisma — ver core/prisma/tenant-client.ts.
+      const center = await prisma.costCenter.create({ data: { code, name, description: description ?? null } as any });
       res.status(201).json({ costCenter: center });
     } catch (error: any) {
       if (error.code === 'P2002') { res.status(409).json({ error: 'Código já cadastrado.' }); return; }
-      console.error('Erro ao criar centro de custo:', error);
-      res.status(500).json({ error: 'Erro interno.' });
+      respondError(res, error, 'Erro ao criar centro de custo.');
     }
   }
 
@@ -69,10 +68,8 @@ export class CostCentersController {
       });
       res.json({ costCenter: center });
     } catch (error: any) {
-      if (error.code === 'P2025') { res.status(404).json({ error: 'Não encontrado.' }); return; }
       if (error.code === 'P2002') { res.status(409).json({ error: 'Código já cadastrado.' }); return; }
-      console.error('Erro ao atualizar centro de custo:', error);
-      res.status(500).json({ error: 'Erro interno.' });
+      respondError(res, error, 'Erro ao atualizar centro de custo.');
     }
   }
 
@@ -81,9 +78,7 @@ export class CostCentersController {
       await prisma.costCenter.update({ where: { id: req.params['id'] as string }, data: { active: false } });
       res.json({ message: 'Centro de custo desativado.' });
     } catch (error: any) {
-      if (error.code === 'P2025') { res.status(404).json({ error: 'Não encontrado.' }); return; }
-      console.error('Erro ao desativar centro de custo:', error);
-      res.status(500).json({ error: 'Erro interno.' });
+      respondError(res, error, 'Erro ao desativar centro de custo.');
     }
   }
 }

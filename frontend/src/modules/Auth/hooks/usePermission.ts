@@ -1,25 +1,23 @@
 import { useAuthContext } from '../context/AuthContext';
-
-// Groups that have full admin access
-const ADMIN_GROUPS = ['Administrador', 'Tecnologia'];
+import { PERMISSIONS } from '@sigetes/shared';
 
 export function usePermission() {
   const { user } = useAuthContext();
-  const group = user?.group ?? '';
+  const permissions = user?.membership?.permissions ?? [];
+  const isOwner = user?.membership?.isOwner ?? false;
 
-  const isAdmin = ADMIN_GROUPS.includes(group);
-
-  const can = (allowedGroups: string[]) =>
-    isAdmin || allowedGroups.some((g) => g === group);
+  const can = (...perms: string[]) => isOwner || perms.every((p) => permissions.includes(p));
 
   return {
-    group,
-    isAdmin,
-    canManagePeople:    can(['Administrador', 'Tecnologia']),
-    canManageFinance:   can(['Administrador', 'Tecnologia', 'Financeiro']),
-    canManageProjects:  can(['Administrador', 'Tecnologia', 'Inovação']),
-    canViewReports:     can(['Administrador', 'Tecnologia', 'Financeiro']),
-    canManageSettings:  isAdmin,
+    role: user?.membership?.role ?? '',
+    isOwner,
+    isAdmin: isOwner,
+    permissions,
+    canManagePeople:    can(PERMISSIONS.PEOPLE_WRITE),
+    canManageFinance:   can(PERMISSIONS.FINANCE_TRANSACTIONS_WRITE),
+    canManageProjects:  can(PERMISSIONS.PROJECTS_WRITE),
+    canViewReports:     can(PERMISSIONS.REPORTS_VIEW),
+    canManageSettings:  isOwner,
     can,
   };
 }

@@ -8,6 +8,7 @@ import {
   DollarSign,
   BarChart3,
   Network,
+  Landmark,
 } from 'lucide-react';
 import { usePermission } from '../modules/Auth/hooks/usePermission';
 
@@ -29,6 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     ];
 
     items.push({ key: '/projects', icon: <Briefcase size={20} />, label: 'Projetos' });
+    items.push({ key: '/institutional-contexts', icon: <Landmark size={20} />, label: 'Contextos Institucionais' });
 
     if (canManageFinance) {
       items.push({

@@ -27,12 +27,14 @@ export const auditMiddleware = (req: Request, res: Response, next: NextFunction)
       else if (req.originalUrl.includes('/transactions')) moduleName = 'FINANCE';
       else if (req.originalUrl.includes('/reports')) moduleName = 'REPORTS';
 
-      const user: any = (req as any).user;
-      const userId = user?.id || null;
-      const userEmail = user?.email || req.body?.email || null;
-      const userName = user?.name || req.body?.name || null;
+      const user = req.user;
+      // Sem organização resolvida (ex.: tentativa de login) ainda não há onde
+      // gravar o log — AuditLog é por organização. Fica para uma fase futura
+      // um log de auditoria de plataforma para eventos pré-autenticação.
+      if (!user?.organizationId) return;
 
       await AuditService.log({
+        organizationId: user.organizationId,
         action,
         module: moduleName,
         description: `Request ${req.method} ${req.originalUrl} finished with status ${statusCode}`,
@@ -40,9 +42,9 @@ export const auditMiddleware = (req: Request, res: Response, next: NextFunction)
         method: req.method,
         ipAddress: req.ip || req.connection.remoteAddress?.toString() || null,
         userAgent: req.headers['user-agent'] || null,
-        userId,
-        userEmail,
-        userName,
+        userId: user.id,
+        userEmail: user.email,
+        userName: user.name,
         success,
         statusCode,
         responseTime

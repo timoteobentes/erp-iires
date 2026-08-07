@@ -34,11 +34,13 @@ export interface Transaction {
   projectId?: string | null;
   donorId?: string | null;
   partnerId?: string | null;
+  contextId?: string | null;
   project?: { id: string; name: string } | null;
   donor?: { id: string; name: string } | null;
   partner?: { id: string; name: string } | null;
   accountPlan?: { id: string; code: string; name: string } | null;
   costCenter?: { id: string; code: string; name: string } | null;
+  context?: { id: string; name: string; type: string; status: string } | null;
 }
 
 export interface TransactionSummary {
@@ -69,6 +71,7 @@ export interface TransactionPayload {
   projectId?: string | null;
   donorId?: string | null;
   partnerId?: string | null;
+  contextId?: string | null;
 }
 
 export interface BatchPayload {
@@ -86,6 +89,7 @@ export interface BatchPayload {
   projectId?: string | null;
   donorId?: string | null;
   partnerId?: string | null;
+  contextId?: string | null;
   firstDate: string;
   // Parcelamento
   totalAmount?: number;

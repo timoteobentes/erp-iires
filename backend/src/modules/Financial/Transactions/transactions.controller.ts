@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
-import prisma from '../../../config/prisma.js';
+import { tenantPrisma as prisma } from '../../../core/prisma/tenant-client.js';
+import { respondError } from '../../../shared/utils/respond-error.js';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -17,10 +18,10 @@ function advanceDate(date: Date, frequency: string, steps: number): Date {
 
 const COMMON_INCLUDE = {
   project:     { select: { id: true, name: true } },
-  donor:       { select: { id: true, name: true } },
-  partner:     { select: { id: true, name: true } },
+  person:      { select: { id: true, name: true, roles: true } },
   accountPlan: { select: { id: true, code: true, name: true } },
   costCenter:  { select: { id: true, code: true, name: true } },
+  context:     { select: { id: true, name: true, type: true, status: true } },
 };
 
 // ─── controller ───────────────────────────────────────────────────────────────
@@ -34,6 +35,7 @@ export class TransactionsController {
     try {
       const data = req.body;
 
+      // organizationId é injetado automaticamente pelo tenantPrisma — ver core/prisma/tenant-client.ts.
       const newTransaction = await prisma.transaction.create({
         data: {
           title:        data.title,
@@ -42,23 +44,21 @@ export class TransactionsController {
           amount:       data.amount,
           date:         new Date(data.date),
           status:       data.status || 'PENDING',
-          category:     data.category,
+          category:     data.category ?? null,
           paymentMethod: data.paymentMethod ?? null,
           observations:  data.observations ?? null,
-          attachments:   data.attachments ?? null,
           accountPlanId: data.accountPlanId || null,
           costCenterId:  data.costCenterId  || null,
           projectId:     data.projectId     || null,
-          donorId:       data.donorId       || null,
-          partnerId:     data.partnerId     || null,
-        },
+          personId:      data.personId      || null,
+          contextId:     data.contextId     || null,
+        } as any,
         include: COMMON_INCLUDE,
       });
 
       res.status(201).json({ message: 'Transação registrada com sucesso!', transaction: newTransaction });
     } catch (error) {
-      console.error('Erro no Create Transaction:', error);
-      res.status(500).json({ error: 'Erro ao registrar transação.' });
+      respondError(res, error, 'Erro ao registrar transação.');
     }
   }
 
@@ -73,16 +73,15 @@ export class TransactionsController {
       const baseFields = {
         type:         data.type,
         status:       data.status || 'PENDING',
-        category:     data.category,
+        category:     data.category ?? null,
         description:  data.description ?? null,
         paymentMethod: data.paymentMethod ?? null,
         observations:  data.observations ?? null,
-        attachments:   data.attachments ?? null,
         accountPlanId: data.accountPlanId || null,
         costCenterId:  data.costCenterId  || null,
         projectId:     data.projectId     || null,
-        donorId:       data.donorId       || null,
-        partnerId:     data.partnerId     || null,
+        personId:      data.personId      || null,
+        contextId:     data.contextId     || null,
         groupId,
       };
 
@@ -144,8 +143,7 @@ export class TransactionsController {
 
       res.status(201).json({ message: 'Lançamentos criados com sucesso!', transactions: created, groupId });
     } catch (error) {
-      console.error('Erro no CreateBatch Transaction:', error);
-      res.status(500).json({ error: 'Erro ao criar lançamentos em lote.' });
+      respondError(res, error, 'Erro ao criar lançamentos em lote.');
     }
   }
 
@@ -154,12 +152,13 @@ export class TransactionsController {
   // =========================================================
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const { search, status, type, category, page, limit = '50' } = req.query as Record<string, string>;
+      const { search, status, type, category, contextId, page, limit = '50' } = req.query as Record<string, string>;
 
       const where: any = {};
       if (status)   where.status   = status;
       if (type)     where.type     = type;
       if (category) where.category = category;
+      if (contextId) where.contextId = contextId;
       if (search) {
         where.OR = [
           { title:       { contains: search, mode: 'insensitive' } },
@@ -183,8 +182,7 @@ export class TransactionsController {
       const transactions = await prisma.transaction.findMany({ where, include: COMMON_INCLUDE, orderBy: { date: 'desc' } });
       res.status(200).json(transactions);
     } catch (error) {
-      console.error('Erro no List Transactions:', error);
-      res.status(500).json({ error: 'Erro ao listar transações.' });
+      respondError(res, error, 'Erro ao listar transações.');
     }
   }
 
@@ -193,9 +191,10 @@ export class TransactionsController {
   // =========================================================
   async getSummary(req: Request, res: Response): Promise<void> {
     try {
+      const contextId = req.query['contextId'] as string | undefined;
       const aggregations = await prisma.transaction.groupBy({
         by: ['type'],
-        where: { status: 'PAID' },
+        where: { status: 'PAID', ...(contextId ? { contextId } : {}) },
         _sum: { amount: true },
       });
 
@@ -208,8 +207,7 @@ export class TransactionsController {
 
       res.status(200).json({ totalIncome, totalExpense, balance: totalIncome - totalExpense });
     } catch (error) {
-      console.error('Erro no GetSummary:', error);
-      res.status(500).json({ error: 'Erro ao obter sumário financeiro.' });
+      respondError(res, error, 'Erro ao obter sumário financeiro.');
     }
   }
 
@@ -238,8 +236,7 @@ export class TransactionsController {
       }
       res.status(200).json(monthsData);
     } catch (error) {
-      console.error('Erro no GetMonthlySummary:', error);
-      res.status(500).json({ error: 'Erro ao obter sumário mensal.' });
+      respondError(res, error, 'Erro ao obter sumário mensal.');
     }
   }
 
@@ -255,8 +252,7 @@ export class TransactionsController {
       if (!transaction) { res.status(404).json({ error: 'Transação não encontrada.' }); return; }
       res.status(200).json(transaction);
     } catch (error) {
-      console.error('Erro no GetById:', error);
-      res.status(500).json({ error: 'Erro ao buscar transação.' });
+      respondError(res, error, 'Erro ao buscar transação.');
     }
   }
 
@@ -272,8 +268,7 @@ export class TransactionsController {
       });
       res.status(200).json({ transactions });
     } catch (error) {
-      console.error('Erro no GetByGroup:', error);
-      res.status(500).json({ error: 'Erro ao buscar grupo.' });
+      respondError(res, error, 'Erro ao buscar grupo.');
     }
   }
 
@@ -287,15 +282,15 @@ export class TransactionsController {
 
       const fields = [
         'title', 'description', 'type', 'amount', 'status', 'category',
-        'paymentMethod', 'observations', 'attachments',
-        'projectId', 'donorId', 'partnerId', 'accountPlanId', 'costCenterId',
+        'paymentMethod', 'observations',
+        'projectId', 'personId', 'accountPlanId', 'costCenterId', 'contextId',
       ];
       fields.forEach((f) => { if (data[f] !== undefined) updateData[f] = data[f]; });
 
       if (data.date !== undefined) updateData.date = new Date(data.date);
 
       // Permitir null explícito nos relacionamentos
-      for (const f of ['projectId', 'donorId', 'partnerId', 'accountPlanId', 'costCenterId']) {
+      for (const f of ['projectId', 'personId', 'accountPlanId', 'costCenterId', 'contextId']) {
         if (data[f] === null) updateData[f] = null;
       }
 
@@ -307,8 +302,7 @@ export class TransactionsController {
 
       res.status(200).json({ message: 'Transação atualizada!', transaction: updated });
     } catch (error) {
-      console.error('Erro no Update Transaction:', error);
-      res.status(500).json({ error: 'Erro ao atualizar transação.' });
+      respondError(res, error, 'Erro ao atualizar transação.');
     }
   }
 
@@ -323,8 +317,7 @@ export class TransactionsController {
       });
       res.status(200).json({ message: `${result.count} lançamento(s) cancelado(s).` });
     } catch (error) {
-      console.error('Erro no CancelGroup:', error);
-      res.status(500).json({ error: 'Erro ao cancelar grupo.' });
+      respondError(res, error, 'Erro ao cancelar grupo.');
     }
   }
 
@@ -339,8 +332,7 @@ export class TransactionsController {
       });
       res.status(200).json({ message: 'Transação cancelada.' });
     } catch (error) {
-      console.error('Erro no Delete Transaction:', error);
-      res.status(500).json({ error: 'Erro ao cancelar transação.' });
+      respondError(res, error, 'Erro ao cancelar transação.');
     }
   }
 }

@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
-import prisma from '../../config/prisma.js';
+import { tenantPrisma as prisma } from '../../core/prisma/tenant-client.js';
+import { respondError } from '../../shared/utils/respond-error.js';
 
 export class NotificationsController {
 
@@ -21,8 +22,7 @@ export class NotificationsController {
 
       res.json({ notifications });
     } catch (error) {
-      console.error('Erro ao listar notificações:', error);
-      res.status(500).json({ error: 'Erro interno no servidor.' });
+      respondError(res, error, 'Erro ao listar notificações.');
     }
   }
 
@@ -41,8 +41,7 @@ export class NotificationsController {
 
       res.json({ message: 'Todas as notificações foram marcadas como lidas.' });
     } catch (error) {
-      console.error('Erro ao marcar notificações como lidas:', error);
-      res.status(500).json({ error: 'Erro interno no servidor.' });
+      respondError(res, error, 'Erro ao marcar notificações como lidas.');
     }
   }
 
@@ -71,8 +70,7 @@ export class NotificationsController {
 
       res.json({ notification: updated });
     } catch (error) {
-      console.error('Erro ao marcar notificação como lida:', error);
-      res.status(500).json({ error: 'Erro interno no servidor.' });
+      respondError(res, error, 'Erro ao marcar notificação como lida.');
     }
   }
 
@@ -98,8 +96,7 @@ export class NotificationsController {
 
       res.status(204).send();
     } catch (error) {
-      console.error('Erro ao deletar notificação:', error);
-      res.status(500).json({ error: 'Erro interno no servidor.' });
+      respondError(res, error, 'Erro ao deletar notificação.');
     }
   }
 
@@ -126,6 +123,7 @@ export class NotificationsController {
         }
       }
 
+      // organizationId é injetado automaticamente pelo tenantPrisma — ver core/prisma/tenant-client.ts.
       const notification = await prisma.notification.create({
         data: {
           title,
@@ -133,13 +131,12 @@ export class NotificationsController {
           type: type ?? 'info',
           userId: resolvedUserId,
           link: link ?? null,
-        },
+        } as any,
       });
 
       res.status(201).json({ notification });
     } catch (error) {
-      console.error('Erro ao criar notificação:', error);
-      res.status(500).json({ error: 'Erro interno no servidor.' });
+      respondError(res, error, 'Erro ao criar notificação.');
     }
   }
 }

@@ -4,221 +4,293 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import prisma from '../../config/prisma.js';
 import { MailService } from '../../shared/services/mail.service.js';
+import { DEFAULT_ROLES } from '@sigetes/shared';
 
 const JWT_SECRET = () => process.env.JWT_SECRET || 'secret-fallback-nao-use-em-prod';
-const REFRESH_SECRET = () => process.env.JWT_REFRESH_SECRET || 'refresh-fallback-nao-use-em-prod';
-const REFRESH_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
+const ACCESS_TOKEN_EXPIRES_IN = '1h';
+const REFRESH_TOKEN_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
 
-function generateTokens(userId: string, role: string | null, group: string | null) {
-  const accessToken = jwt.sign({ id: userId, role, group }, JWT_SECRET(), { expiresIn: '1d' });
-  const refreshToken = crypto.randomBytes(40).toString('hex');
-  const refreshExpires = new Date(Date.now() + REFRESH_EXPIRES_MS);
-  return { accessToken, refreshToken, refreshExpires };
+type BasicUser = { id: string; name: string; email: string };
+type MembershipWithRole = {
+  id: string;
+  organizationId: string;
+  isOwner: boolean;
+  role: { name: string; permissions: string[] };
+  organization: { id: string; slug: string; tradeName: string | null; legalName: string };
+};
+
+function generateAccessToken(user: BasicUser, membership: MembershipWithRole) {
+  return jwt.sign(
+    {
+      sub: user.id,
+      name: user.name,
+      email: user.email,
+      orgId: membership.organizationId,
+      membershipId: membership.id,
+      isOwner: membership.isOwner,
+      permissions: membership.role.permissions,
+    },
+    JWT_SECRET(),
+    { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
+  );
+}
+
+async function issueRefreshToken(userId: string, req: Request, familyId?: string) {
+  const raw = crypto.randomBytes(40).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES_MS);
+  await prisma.refreshToken.create({
+    data: {
+      userId,
+      tokenHash,
+      familyId: familyId ?? crypto.randomUUID(),
+      expiresAt,
+      userAgent: (req.headers['user-agent'] as string) ?? null,
+      ipAddress: req.ip ?? null,
+    },
+  });
+  return raw;
+}
+
+/** Busca o vínculo ativo do usuário com uma organização (a informada, ou a primeira, por padrão). */
+async function resolveMembership(userId: string, organizationId?: string): Promise<MembershipWithRole | null> {
+  return prisma.membership.findFirst({
+    where: { userId, status: 'ACTIVE', ...(organizationId ? { organizationId } : {}) },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      organizationId: true,
+      isOwner: true,
+      role: { select: { name: true, permissions: true } },
+      organization: { select: { id: true, slug: true, tradeName: true, legalName: true } },
+    },
+  });
+}
+
+function serializeSession(user: BasicUser & { avatarUrl?: string | null; phone?: string | null }, membership: MembershipWithRole) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    avatarUrl: user.avatarUrl ?? null,
+    phone: user.phone ?? null,
+    organization: {
+      id: membership.organization.id,
+      slug: membership.organization.slug,
+      name: membership.organization.tradeName || membership.organization.legalName,
+    },
+    membership: {
+      id: membership.id,
+      isOwner: membership.isOwner,
+      role: membership.role.name,
+      permissions: membership.role.permissions,
+    },
+  };
+}
+
+function slugify(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 60) || 'organizacao';
 }
 
 export class AuthController {
-
-  // 1. ROTA DE CADASTRO
+  // 1. CADASTRO DE NOVA INSTITUIÇÃO (cria User dono + Organization + Membership OWNER)
   async signUp(req: Request, res: Response): Promise<void> {
     try {
-      const { name, email, password } = req.body;
+      const { name, email, password, organizationName, document } = req.body;
 
-      if (!name || !email || !password) {
-        res.status(400).json({ error: 'Nome, e-mail e senha são obrigatórios.' });
+      if (!name || !email || !password || !organizationName) {
+        res.status(400).json({ error: 'Nome, e-mail, senha e nome da instituição são obrigatórios.' });
         return;
       }
 
       const userExists = await prisma.user.findUnique({ where: { email } });
-
       if (userExists) {
         res.status(409).json({ error: 'Este e-mail já está em uso.' });
         return;
       }
 
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(password, salt);
+      const passwordHash = await bcrypt.hash(password, await bcrypt.genSalt(10));
 
-      const newUser = await prisma.user.create({
-        data: {
-          name,
-          email,
-          passwordHash,
-          role: 'Usuário',
-          level: 'Operacional',
-          group: 'Geral',
-          status: 'active'
-        },
+      let slug = slugify(organizationName);
+      if (await prisma.organization.findUnique({ where: { slug } })) {
+        slug = `${slug}-${crypto.randomBytes(3).toString('hex')}`;
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({ data: { name, email, passwordHash, status: 'ACTIVE' } });
+
+        const organization = await tx.organization.create({
+          data: {
+            slug,
+            legalName: organizationName,
+            tradeName: organizationName,
+            document: document || `PENDENTE-${crypto.randomBytes(6).toString('hex')}`,
+            legalNature: 'OUTRO',
+            email,
+            status: 'ACTIVE',
+            onboardedAt: new Date(),
+          },
+        });
+
+        let ownerRole = null;
+        for (const r of DEFAULT_ROLES) {
+          const role = await tx.role.create({
+            data: { organizationId: organization.id, name: r.name, isSystem: r.isSystem, permissions: r.permissions },
+          });
+          if (r.name === 'Administrador') ownerRole = role;
+        }
+        if (!ownerRole) throw new Error('Papel Administrador não foi semeado corretamente.');
+
+        const membership = await tx.membership.create({
+          data: { userId: user.id, organizationId: organization.id, roleId: ownerRole.id, isOwner: true },
+          select: {
+            id: true,
+            organizationId: true,
+            isOwner: true,
+            role: { select: { name: true, permissions: true } },
+            organization: { select: { id: true, slug: true, tradeName: true, legalName: true } },
+          },
+        });
+
+        return { user, membership };
       });
+
+      const accessToken = generateAccessToken(result.user, result.membership);
+      const refreshToken = await issueRefreshToken(result.user.id, req);
 
       res.status(201).json({
-        message: 'Usuário cadastrado com sucesso!',
-        user: { id: newUser.id, name: newUser.name, email: newUser.email }
+        message: 'Instituição cadastrada com sucesso!',
+        token: accessToken,
+        refreshToken,
+        user: serializeSession(result.user, result.membership),
       });
-
     } catch (error) {
       console.error('Erro no SignUp:', error);
       res.status(500).json({ error: 'Erro interno no servidor.' });
     }
   }
 
-  // 2. NOVA ROTA DE LOGIN (Sign In)
+  // 2. LOGIN
   async signIn(req: Request, res: Response): Promise<void> {
     try {
-      const { email, password } = req.body;
+      const { email, password, organizationId } = req.body;
 
       if (!email || !password) {
         res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
         return;
       }
 
-      // 1. Busca o usuário pelo e-mail
-      const user = await prisma.user.findUnique({
-        where: { email },
-      });
-
-      // Se não achar o usuário, ou se a conta estiver inativa
-      if (!user || user.status === 'inactive') {
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user || user.status !== 'ACTIVE') {
         res.status(401).json({ error: 'Credenciais inválidas ou conta inativa.' });
         return;
       }
 
-      // 2. Compara a senha digitada com o Hash do banco
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
       if (!isPasswordValid) {
         res.status(401).json({ error: 'Credenciais inválidas.' });
         return;
       }
 
-      // 3. Gera o Access Token + Refresh Token
-      const { accessToken, refreshToken, refreshExpires } = generateTokens(user.id, user.role, user.group);
+      const membership = await resolveMembership(user.id, organizationId);
+      if (!membership) {
+        res.status(403).json({ error: 'Este usuário não está vinculado a nenhuma organização ativa.' });
+        return;
+      }
 
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { refreshToken, refreshTokenExpires: refreshExpires },
-      });
+      const accessToken = generateAccessToken(user, membership);
+      const refreshToken = await issueRefreshToken(user.id, req);
+      await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
-      // 4. Retorna os dados do usuário + os tokens
       res.status(200).json({
         message: 'Login realizado com sucesso!',
         token: accessToken,
         refreshToken,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          group: user.group
-        }
+        user: serializeSession(user, membership),
       });
-
     } catch (error) {
       console.error('Erro no SignIn:', error);
       res.status(500).json({ error: 'Erro interno no servidor.' });
     }
   }
 
-  // 3. ROTA DO PERFIL DO USUÁRIO LOGADO (Get Me)
+  // 3. PERFIL DO USUÁRIO LOGADO
   async getMe(req: Request, res: Response): Promise<void> {
     try {
-      // O ID vem magicamente do nosso middleware! O usuário não precisa mandar no body.
       const userId = req.user?.id;
-
       if (!userId) {
         res.status(401).json({ error: 'Usuário não identificado.' });
         return;
       }
 
-      // Busca o usuário no banco
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          cpf: true,
-          phone: true,
-          role: true,
-          level: true,
-          group: true,
-          status: true,
-          avatarConfig: true,
-          createdAt: true
-        }
+        select: { id: true, name: true, email: true, phone: true, avatarUrl: true, status: true, createdAt: true },
       });
-
       if (!user) {
         res.status(404).json({ error: 'Usuário não encontrado.' });
         return;
       }
 
-      res.status(200).json(user);
-
+      const membership = await resolveMembership(userId, req.user!.organizationId);
+      res.status(200).json({ ...user, session: membership ? serializeSession(user, membership) : null });
     } catch (error) {
       console.error('Erro no getMe:', error);
       res.status(500).json({ error: 'Erro interno no servidor.' });
     }
   }
 
-  // 4. ESQUECI A SENHA (Gera Token)
+  // 4. ESQUECI A SENHA
   async forgotPassword(req: Request, res: Response): Promise<void> {
     try {
       const { email } = req.body;
-
       if (!email) {
         res.status(400).json({ error: 'O e-mail é obrigatório.' });
         return;
       }
 
       const user = await prisma.user.findUnique({ where: { email } });
-
       if (!user) {
-        // Por segurança, não avisamos se o e-mail existe ou não.
         res.status(200).json({ message: 'Se o e-mail existir, um link de recuperação será enviado.' });
         return;
       }
 
-      // Gera um token aleatório de 32 bytes em formato Hexadecimal
       const resetToken = crypto.randomBytes(32).toString('hex');
-      
-      // Define a validade do token para 15 minutos (900000 ms)
       const resetExpires = new Date(Date.now() + 900000);
 
-      // Salva no banco
       await prisma.user.update({
         where: { id: user.id },
-        data: {
-          resetPasswordToken: resetToken,
-          resetPasswordExpires: resetExpires,
-        }
+        data: { resetPasswordToken: resetToken, resetPasswordExpires: resetExpires },
       });
 
       await MailService.sendResetPasswordEmail(user.name, user.email, resetToken);
-
       res.status(200).json({ message: 'Se o e-mail existir, um link de recuperação será enviado.' });
-
     } catch (error) {
       console.error('Erro no forgotPassword:', error);
       res.status(500).json({ error: 'Erro interno no servidor.' });
     }
   }
 
-  // 5. ATUALIZAR DADOS DO PRÓPRIO PERFIL (updateMe)
+  // 5. ATUALIZAR PRÓPRIO PERFIL
   async updateMe(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
-
       if (!userId) {
         res.status(401).json({ error: 'Usuário não identificado.' });
         return;
       }
 
-      const { name, phone, avatarConfig } = req.body;
-
-      const updateData: any = {};
+      const { name, phone, avatarUrl } = req.body;
+      const updateData: Record<string, unknown> = {};
       if (name !== undefined) updateData.name = name;
       if (phone !== undefined) updateData.phone = phone;
-      if (avatarConfig !== undefined) updateData.avatarConfig = avatarConfig;
+      if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
 
       if (Object.keys(updateData).length === 0) {
         res.status(400).json({ error: 'Nenhum campo para atualizar foi enviado.' });
@@ -228,18 +300,7 @@ export class AuthController {
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: updateData,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          cpf: true,
-          role: true,
-          level: true,
-          group: true,
-          status: true,
-          avatarConfig: true,
-        },
+        select: { id: true, name: true, email: true, phone: true, avatarUrl: true, status: true },
       });
 
       res.status(200).json({ message: 'Perfil atualizado com sucesso!', user: updatedUser });
@@ -249,50 +310,39 @@ export class AuthController {
     }
   }
 
-  // 6. ALTERAR PRÓPRIA SENHA (changePassword)
+  // 6. ALTERAR PRÓPRIA SENHA
   async changePassword(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
-
       if (!userId) {
         res.status(401).json({ error: 'Usuário não identificado.' });
         return;
       }
 
       const { currentPassword, newPassword } = req.body;
-
       if (!currentPassword || !newPassword) {
         res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias.' });
         return;
       }
-
       if (newPassword.length < 6) {
         res.status(400).json({ error: 'A nova senha deve ter no mínimo 6 caracteres.' });
         return;
       }
 
       const user = await prisma.user.findUnique({ where: { id: userId } });
-
       if (!user) {
         res.status(404).json({ error: 'Usuário não encontrado.' });
         return;
       }
 
-      // Verifica se a senha atual bate
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
-
       if (!isCurrentPasswordValid) {
         res.status(401).json({ error: 'Senha atual incorreta.' });
         return;
       }
 
-      const salt = await bcrypt.genSalt(10);
-      const newPasswordHash = await bcrypt.hash(newPassword, salt);
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: { passwordHash: newPasswordHash },
-      });
+      const newPasswordHash = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+      await prisma.user.update({ where: { id: userId }, data: { passwordHash: newPasswordHash } });
 
       res.status(200).json({ message: 'Senha alterada com sucesso!' });
     } catch (error) {
@@ -301,40 +351,53 @@ export class AuthController {
     }
   }
 
-  // 7. REFRESH TOKEN — troca o refresh token por novos tokens
+  // 7. REFRESH TOKEN — rotação com detecção de reuso
   async refresh(req: Request, res: Response): Promise<void> {
     try {
-      const { refreshToken } = req.body;
-
+      const { refreshToken, organizationId } = req.body;
       if (!refreshToken) {
         res.status(400).json({ error: 'Refresh token é obrigatório.' });
         return;
       }
 
-      const user = await prisma.user.findFirst({
-        where: {
-          refreshToken,
-          refreshTokenExpires: { gt: new Date() },
-          status: 'active',
-        },
-      });
+      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
 
-      if (!user) {
+      if (!stored || stored.expiresAt < new Date()) {
         res.status(401).json({ error: 'Refresh token inválido ou expirado. Faça login novamente.' });
         return;
       }
 
-      const { accessToken, refreshToken: newRefreshToken, refreshExpires } = generateTokens(user.id, user.role, user.group);
+      if (stored.revokedAt) {
+        // Um token já usado sendo reapresentado é sinal de roubo — revoga a família inteira.
+        await prisma.refreshToken.updateMany({
+          where: { familyId: stored.familyId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        res.status(401).json({ error: 'Sessão comprometida detectada. Faça login novamente.' });
+        return;
+      }
 
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { refreshToken: newRefreshToken, refreshTokenExpires: refreshExpires },
-      });
+      const user = await prisma.user.findUnique({ where: { id: stored.userId } });
+      if (!user || user.status !== 'ACTIVE') {
+        res.status(401).json({ error: 'Usuário inválido.' });
+        return;
+      }
+
+      const membership = await resolveMembership(user.id, organizationId);
+      if (!membership) {
+        res.status(403).json({ error: 'Este usuário não está vinculado a nenhuma organização ativa.' });
+        return;
+      }
+
+      await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
+      const newRefreshToken = await issueRefreshToken(user.id, req, stored.familyId);
+      const accessToken = generateAccessToken(user, membership);
 
       res.status(200).json({
         token: accessToken,
         refreshToken: newRefreshToken,
-        user: { id: user.id, name: user.name, email: user.email, role: user.role, group: user.group },
+        user: serializeSession(user, membership),
       });
     } catch (error) {
       console.error('Erro no refresh:', error);
@@ -342,15 +405,38 @@ export class AuthController {
     }
   }
 
-  // 8. LOGOUT — invalida o refresh token
-  async logout(req: Request, res: Response): Promise<void> {
+  // 8. TROCAR DE ORGANIZAÇÃO (usuário com múltiplos vínculos)
+  async switchOrg(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user?.id;
-      if (userId) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { refreshToken: null, refreshTokenExpires: null },
-        });
+      const { organizationId } = req.body;
+      if (!userId || !organizationId) {
+        res.status(400).json({ error: 'organizationId é obrigatório.' });
+        return;
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const membership = await resolveMembership(userId, organizationId);
+      if (!user || !membership) {
+        res.status(403).json({ error: 'Você não tem vínculo ativo com essa organização.' });
+        return;
+      }
+
+      const accessToken = generateAccessToken(user, membership);
+      res.status(200).json({ token: accessToken, user: serializeSession(user, membership) });
+    } catch (error) {
+      console.error('Erro no switchOrg:', error);
+      res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+  }
+
+  // 9. LOGOUT — revoga o refresh token apresentado
+  async logout(req: Request, res: Response): Promise<void> {
+    try {
+      const { refreshToken } = req.body;
+      if (refreshToken) {
+        const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+        await prisma.refreshToken.updateMany({ where: { tokenHash, revokedAt: null }, data: { revokedAt: new Date() } });
       }
       res.status(200).json({ message: 'Logout realizado com sucesso.' });
     } catch (error) {
@@ -359,45 +445,30 @@ export class AuthController {
     }
   }
 
-  // 9. REDEFINIR SENHA (Com Token)
+  // 10. REDEFINIR SENHA (com token)
   async resetPassword(req: Request, res: Response): Promise<void> {
     try {
       const { token, newPassword } = req.body;
-
       if (!token || !newPassword) {
         res.status(400).json({ error: 'Token e nova senha são obrigatórios.' });
         return;
       }
 
-      // Busca o usuário que tem esse token e se a data de validade é MAIOR que agora
       const user = await prisma.user.findFirst({
-        where: {
-          resetPasswordToken: token,
-          resetPasswordExpires: { gt: new Date() }, // gt = greater than (maior que)
-        }
+        where: { resetPasswordToken: token, resetPasswordExpires: { gt: new Date() } },
       });
-
       if (!user) {
         res.status(400).json({ error: 'Token inválido ou expirado.' });
         return;
       }
 
-      // Criptografa a nova senha
-      const salt = await bcrypt.genSalt(10);
-      const newPasswordHash = await bcrypt.hash(newPassword, salt);
-
-      // Atualiza a senha e APAGA o token (para não ser usado de novo)
+      const newPasswordHash = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
       await prisma.user.update({
         where: { id: user.id },
-        data: {
-          passwordHash: newPasswordHash,
-          resetPasswordToken: null,
-          resetPasswordExpires: null,
-        }
+        data: { passwordHash: newPasswordHash, resetPasswordToken: null, resetPasswordExpires: null },
       });
 
       res.status(200).json({ message: 'Senha redefinida com sucesso! Você já pode fazer login.' });
-
     } catch (error) {
       console.error('Erro no resetPassword:', error);
       res.status(500).json({ error: 'Erro interno no servidor.' });

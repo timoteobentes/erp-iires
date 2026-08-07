@@ -18,6 +18,8 @@ export interface Project {
   volunteers?: { id: string; name: string }[];
   partners?: { id: string; name: string; partnershipType: string }[];
   donors?: { id: string; name: string }[];
+  contextId?: string | null;
+  context?: { id: string; name: string; type: string; status: string } | null;
   createdAt?: string;
 }
 
@@ -34,6 +36,7 @@ export interface ProjectPayload {
   donorIds?: string[];
   budget?: number | null;
   progress?: number;
+  contextId?: string | null;
 }
 
 // ============================================================

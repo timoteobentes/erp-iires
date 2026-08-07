@@ -1,22 +1,29 @@
 import type { Request, Response } from 'express';
-import prisma from '../../config/prisma.js';
+import { tenantPrisma as prisma } from '../../core/prisma/tenant-client.js';
+import { respondError } from '../../shared/utils/respond-error.js';
 
 const projectInclude = {
-  manager:     { select: { id: true, name: true } },
-  teamMembers: { select: { id: true, name: true } },
-  volunteers:  { select: { id: true, name: true } },
-  partners:    { select: { id: true, name: true, partnershipType: true } },
-  donors:      { select: { id: true, name: true } },
+  manager: { select: { id: true, name: true } },
+  members: { select: { role: true, member: { select: { id: true, name: true } } } },
+  persons: { select: { role: true, hours: true, person: { select: { id: true, name: true, roles: true } } } },
+  context: { select: { id: true, name: true, type: true, status: true } },
 };
+
+/** Monta as linhas de ProjectPerson a partir das 3 listas legadas (voluntários/doadores/parceiros). */
+function buildPersonLinks(data: any) {
+  return [
+    ...(data.volunteerIds ?? []).map((personId: string) => ({ personId, role: 'VOLUNTEER' as const })),
+    ...(data.donorIds ?? []).map((personId: string) => ({ personId, role: 'DONOR' as const })),
+    ...(data.partnerIds ?? []).map((personId: string) => ({ personId, role: 'PARTNER' as const })),
+  ];
+}
 
 export class ProjectsController {
 
-  // =========================================================
-  // 1. CRIAR NOVO PROJETO
-  // =========================================================
   async create(req: Request, res: Response): Promise<void> {
     try {
       const data = req.body;
+      const personLinks = buildPersonLinks(data);
 
       const newProject = await prisma.project.create({
         data: {
@@ -24,44 +31,32 @@ export class ProjectsController {
           description: data.description,
           startDate: new Date(data.startDate),
           endDate: data.endDate ? new Date(data.endDate) : null,
-          status: data.status || 'planning',
+          status: data.status || 'PLANNING',
           budget: data.budget ? Number(data.budget) : null,
           progress: data.progress !== undefined ? Math.min(100, Math.max(0, Number(data.progress))) : 0,
-
-          manager: { connect: { id: data.managerId } },
-
+          contextId: data.contextId || null,
+          ...(data.managerId && { manager: { connect: { id: data.managerId } } }),
           ...(data.teamMemberIds?.length && {
-            teamMembers: { connect: data.teamMemberIds.map((id: string) => ({ id })) }
+            members: { create: data.teamMemberIds.map((memberId: string) => ({ memberId })) },
           }),
-          ...(data.volunteerIds?.length && {
-            volunteers: { connect: data.volunteerIds.map((id: string) => ({ id })) }
-          }),
-          ...(data.partnerIds?.length && {
-            partners: { connect: data.partnerIds.map((id: string) => ({ id })) }
-          }),
-          ...(data.donorIds?.length && {
-            donors: { connect: data.donorIds.map((id: string) => ({ id })) }
-          }),
+          ...(personLinks.length && { persons: { create: personLinks } }),
         },
         include: projectInclude,
       });
 
       res.status(201).json({ message: 'Projeto criado com sucesso!', project: newProject });
     } catch (error) {
-      console.error('Erro no Create Project:', error);
-      res.status(500).json({ error: 'Erro ao criar projeto.' });
+      respondError(res, error, 'Erro ao criar projeto.');
     }
   }
 
-  // =========================================================
-  // 2. LISTAR PROJETOS
-  // =========================================================
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const { search, status, page, limit = '50' } = req.query as Record<string, string>;
+      const { search, status, contextId, page, limit = '50' } = req.query as Record<string, string>;
 
       const where: any = {};
       if (status) where.status = status;
+      if (contextId) where.contextId = contextId;
       if (search) {
         where.OR = [
           { name: { contains: search, mode: 'insensitive' } },
@@ -73,6 +68,7 @@ export class ProjectsController {
         id: true, name: true, description: true, startDate: true, endDate: true, status: true,
         budget: true, progress: true,
         manager: { select: { id: true, name: true } },
+        context: { select: { id: true, name: true, type: true, status: true } },
       };
 
       if (page) {
@@ -90,21 +86,14 @@ export class ProjectsController {
       const projects = await prisma.project.findMany({ where, select, orderBy: { name: 'asc' } });
       res.status(200).json(projects);
     } catch (error) {
-      console.error('Erro no List Projects:', error);
-      res.status(500).json({ error: 'Erro ao listar projetos.' });
+      respondError(res, error, 'Erro ao listar projetos.');
     }
   }
 
-  // =========================================================
-  // 3. BUSCAR PROJETO ESPECÍFICO
-  // =========================================================
   async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
-      const project = await prisma.project.findUnique({
-        where: { id },
-        include: projectInclude,
-      });
+      const project = await prisma.project.findUnique({ where: { id }, include: projectInclude });
 
       if (!project) {
         res.status(404).json({ error: 'Projeto não encontrado.' });
@@ -113,14 +102,10 @@ export class ProjectsController {
 
       res.status(200).json(project);
     } catch (error) {
-      console.error('Erro no GetById Project:', error);
-      res.status(500).json({ error: 'Erro ao buscar projeto.' });
+      respondError(res, error, 'Erro ao buscar projeto.');
     }
   }
 
-  // =========================================================
-  // 4. ATUALIZAR DADOS DO PROJETO
-  // =========================================================
   async update(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
@@ -128,44 +113,50 @@ export class ProjectsController {
 
       const updateData: any = {};
 
-      ['name', 'description', 'status', 'managerId'].forEach(field => {
+      ['name', 'description', 'status'].forEach(field => {
         if (data[field] !== undefined) updateData[field] = data[field];
       });
+      if (data.contextId !== undefined) updateData.contextId = data.contextId || null;
+      if (data.managerId !== undefined) updateData.managerId = data.managerId || null;
 
       if (data.budget !== undefined) updateData.budget = data.budget !== null ? Number(data.budget) : null;
       if (data.progress !== undefined) updateData.progress = Math.min(100, Math.max(0, Number(data.progress)));
       if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
       if (data.endDate !== undefined) updateData.endDate = data.endDate ? new Date(data.endDate) : null;
 
+      // Membros da equipe e pessoas vinculadas são tabelas de junção próprias
+      // (ProjectMember/ProjectPerson) — substituímos o conjunto por completo.
       if (data.teamMemberIds !== undefined) {
-        updateData.teamMembers = { set: data.teamMemberIds.map((id: string) => ({ id })) };
+        await prisma.projectMember.deleteMany({ where: { projectId: id } });
+        if (data.teamMemberIds.length) {
+          await prisma.projectMember.createMany({
+            data: data.teamMemberIds.map((memberId: string) => ({ projectId: id, memberId })),
+          });
+        }
       }
-      if (data.volunteerIds !== undefined) {
-        updateData.volunteers = { set: data.volunteerIds.map((id: string) => ({ id })) };
-      }
-      if (data.partnerIds !== undefined) {
-        updateData.partners = { set: data.partnerIds.map((id: string) => ({ id })) };
-      }
-      if (data.donorIds !== undefined) {
-        updateData.donors = { set: data.donorIds.map((id: string) => ({ id })) };
+      if (data.volunteerIds !== undefined || data.donorIds !== undefined || data.partnerIds !== undefined) {
+        const rolesBeingReplaced: Array<'VOLUNTEER' | 'DONOR' | 'PARTNER'> = [
+          ...(data.volunteerIds !== undefined ? (['VOLUNTEER'] as const) : []),
+          ...(data.donorIds !== undefined ? (['DONOR'] as const) : []),
+          ...(data.partnerIds !== undefined ? (['PARTNER'] as const) : []),
+        ];
+        await prisma.projectPerson.deleteMany({ where: { projectId: id, role: { in: rolesBeingReplaced } } });
+        const newLinks = buildPersonLinks(data);
+        if (newLinks.length) {
+          await prisma.projectPerson.createMany({
+            data: newLinks.map((l) => ({ projectId: id, personId: l.personId, role: l.role })),
+          });
+        }
       }
 
-      const updatedProject = await prisma.project.update({
-        where: { id },
-        data: updateData,
-        include: projectInclude,
-      });
+      const updatedProject = await prisma.project.update({ where: { id }, data: updateData, include: projectInclude });
 
       res.status(200).json({ message: 'Projeto atualizado com sucesso!', project: updatedProject });
     } catch (error) {
-      console.error('Erro no Update Project:', error);
-      res.status(500).json({ error: 'Erro ao atualizar projeto.' });
+      respondError(res, error, 'Erro ao atualizar projeto.');
     }
   }
 
-  // =========================================================
-  // 5. MUDAR STATUS DO PROJETO
-  // =========================================================
   async changeStatus(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
@@ -176,15 +167,11 @@ export class ProjectsController {
         return;
       }
 
-      const updatedProject = await prisma.project.update({
-        where: { id },
-        data: { status }
-      });
+      const updatedProject = await prisma.project.update({ where: { id }, data: { status } });
 
       res.status(200).json({ message: `Status do projeto alterado para ${status} com sucesso!`, project: updatedProject });
     } catch (error) {
-      console.error('Erro no Change Status Project:', error);
-      res.status(500).json({ error: 'Erro ao alterar status do projeto.' });
+      respondError(res, error, 'Erro ao alterar status do projeto.');
     }
   }
 }

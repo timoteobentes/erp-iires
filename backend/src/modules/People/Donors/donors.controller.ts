@@ -1,68 +1,66 @@
 import type { Request, Response } from 'express';
-import prisma from '../../../config/prisma.js';
+import { tenantPrisma as prisma } from '../../../core/prisma/tenant-client.js';
+import { respondError } from '../../../shared/utils/respond-error.js';
+
+// Doador agora é só um "papel" (PersonRole.DONOR) sobre a tabela unificada Person.
+// A mesma pessoa pode já existir como voluntária/parceira; nesse caso o cadastro
+// aqui só acrescenta o papel DONOR em vez de duplicar o registro.
 
 export class DonorsController {
-  
-  // =========================================================
-  // 1. CRIAR NOVO DOADOR (Com Nested Write do Endereço)
-  // =========================================================
+
   async create(req: Request, res: Response): Promise<void> {
     try {
       const data = req.body;
 
-      const existingDonor = await prisma.donor.findUnique({
-        where: { document: data.document }
-      });
-
-      if (existingDonor) {
+      const existing = await prisma.person.findFirst({ where: { document: data.document } });
+      if (existing?.roles.includes('DONOR')) {
         res.status(400).json({ error: 'Já existe um doador com este CPF/CNPJ.' });
         return;
       }
 
-      const newDonor = await prisma.donor.create({
-        data: {
-          type: data.type,
-          name: data.name,
-          document: data.document,
-          phone: data.phone,
-          email: data.email,
-          recurrence: data.recurrence,
-          paymentMethod: data.paymentMethod,
-          status: 'active',
-          
-          // Magia do Prisma: Salva o endereço na tabela Address atrelado a este doador
-          address: {
-            create: {
-              cep: data.cep,
-              street: data.address,
-              number: data.number,
-              neighborhood: data.neighborhood,
-              city: data.city,
-              state: data.state,
-            }
-          }
-        },
-        include: { address: true }
-      });
+      const donationFields = {
+        donationRecurrence: data.recurrence ?? null,
+        preferredPayment: data.paymentMethod ?? null,
+      };
 
-      res.status(201).json({ message: 'Doador cadastrado com sucesso!', donor: newDonor });
+      const person = existing
+        ? await prisma.person.update({
+            where: { id: existing.id },
+            data: { roles: { set: Array.from(new Set([...existing.roles, 'DONOR'])) }, ...donationFields },
+          })
+        : await prisma.person.create({
+            data: {
+              kind: data.type === 'PJ' ? 'COMPANY' : 'INDIVIDUAL',
+              roles: ['DONOR'],
+              name: data.name,
+              document: data.document,
+              phone: data.phone ?? null,
+              email: data.email ?? null,
+              status: 'ACTIVE',
+              zipCode: data.cep ?? null,
+              street: data.address ?? null,
+              number: data.number ?? null,
+              neighborhood: data.neighborhood ?? null,
+              city: data.city ?? null,
+              state: data.state ?? null,
+              ...donationFields,
+            } as any, // organizationId é injetado automaticamente pelo tenantPrisma
+          });
+
+      res.status(201).json({ message: 'Doador cadastrado com sucesso!', donor: person });
     } catch (error) {
-      console.error('Erro no Create Donor:', error);
-      res.status(500).json({ error: 'Erro ao criar doador.' });
+      respondError(res, error, 'Erro ao criar doador.');
     }
   }
 
-  // =========================================================
-  // 2. LISTAR DOADORES
-  // =========================================================
   async list(req: Request, res: Response): Promise<void> {
     try {
       const { search, status, type, recurrence, page, limit = '50' } = req.query as Record<string, string>;
 
-      const where: any = {};
+      const where: any = { roles: { has: 'DONOR' } };
       if (status) where.status = status;
-      if (type) where.type = type;
-      if (recurrence) where.recurrence = recurrence === 'true';
+      if (type) where.kind = type === 'PJ' ? 'COMPANY' : 'INDIVIDUAL';
+      if (recurrence) where.donationRecurrence = recurrence;
       if (search) {
         where.OR = [
           { name: { contains: search, mode: 'insensitive' } },
@@ -76,31 +74,24 @@ export class DonorsController {
         const limitNum = Math.min(100, parseInt(limit));
         const skip = (pageNum - 1) * limitNum;
         const [data, total] = await Promise.all([
-          prisma.donor.findMany({ where, orderBy: { name: 'asc' }, skip, take: limitNum }),
-          prisma.donor.count({ where }),
+          prisma.person.findMany({ where, orderBy: { name: 'asc' }, skip, take: limitNum }),
+          prisma.person.count({ where }),
         ]);
         res.status(200).json({ data, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
         return;
       }
 
-      const donors = await prisma.donor.findMany({ where, orderBy: { name: 'asc' } });
+      const donors = await prisma.person.findMany({ where, orderBy: { name: 'asc' } });
       res.status(200).json(donors);
     } catch (error) {
-      console.error('Erro no List Donors:', error);
-      res.status(500).json({ error: 'Erro ao listar doadores.' });
+      respondError(res, error, 'Erro ao listar doadores.');
     }
   }
 
-  // =========================================================
-  // 3. BUSCAR DOADOR ESPECÍFICO (JOIN com Address)
-  // =========================================================
   async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
-      const donor = await prisma.donor.findUnique({
-        where: { id },
-        include: { address: true }
-      });
+      const donor = await prisma.person.findUnique({ where: { id } });
 
       if (!donor) {
         res.status(404).json({ error: 'Doador não encontrado.' });
@@ -109,84 +100,43 @@ export class DonorsController {
 
       res.status(200).json(donor);
     } catch (error) {
-      console.error('Erro no GetById Donor:', error);
-      res.status(500).json({ error: 'Erro ao buscar doador.' });
+      respondError(res, error, 'Erro ao buscar doador.');
     }
   }
 
-  // =========================================================
-  // 4. ATUALIZAR DADOS DO DOADOR (Com Upsert do Endereço)
-  // =========================================================
   async update(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
       const data: any = req.body;
 
-      // Construímos o objeto de atualização dinamicamente para evitar 'undefined'
-      // com a regra exactOptionalPropertyTypes: true
       const updateData: any = {};
-      
-      const fields = [
-        'type', 'name', 'document', 'phone', 'email', 'recurrence', 'paymentMethod'
-      ];
+      const directFields = ['name', 'document', 'phone', 'email'];
+      directFields.forEach((field) => { if (data[field] !== undefined) updateData[field] = data[field]; });
+      if (data.type !== undefined) updateData.kind = data.type === 'PJ' ? 'COMPANY' : 'INDIVIDUAL';
+      if (data.recurrence !== undefined) updateData.donationRecurrence = data.recurrence;
+      if (data.paymentMethod !== undefined) updateData.preferredPayment = data.paymentMethod;
+      if (data.cep !== undefined) updateData.zipCode = data.cep;
+      if (data.address !== undefined) updateData.street = data.address;
+      if (data.number !== undefined) updateData.number = data.number;
+      if (data.neighborhood !== undefined) updateData.neighborhood = data.neighborhood;
+      if (data.city !== undefined) updateData.city = data.city;
+      if (data.state !== undefined) updateData.state = data.state;
 
-      fields.forEach(field => {
-        if (data[field] !== undefined) {
-          updateData[field] = data[field];
-        }
-      });
-
-      // Se houver algum campo de endereço, preparamos o upsert
-      if (data.cep || data.address || data.number || data.neighborhood || data.city || data.state) {
-        updateData.address = {
-          upsert: {
-            create: {
-              cep: data.cep,
-              street: data.address,
-              number: data.number,
-              neighborhood: data.neighborhood,
-              city: data.city,
-              state: data.state,
-            },
-            update: {
-              cep: data.cep,
-              street: data.address,
-              number: data.number,
-              neighborhood: data.neighborhood,
-              city: data.city,
-              state: data.state,
-            }
-          }
-        };
-      }
-
-      const updatedDonor = await prisma.donor.update({
-        where: { id },
-        data: updateData,
-        include: { address: true }
-      });
+      const updatedDonor = await prisma.person.update({ where: { id }, data: updateData });
 
       res.status(200).json({ message: 'Doador atualizado com sucesso!', donor: updatedDonor });
     } catch (error) {
-      console.error('Erro no Update Donor:', error);
-      res.status(500).json({ error: 'Erro ao atualizar doador.' });
+      respondError(res, error, 'Erro ao atualizar doador.');
     }
   }
 
-  // =========================================================
-  // 5. INATIVAR DOADOR
-  // =========================================================
   async inactivate(req: Request, res: Response): Promise<void> {
     try {
       const { id }: any = req.params;
-      await prisma.donor.update({
-        where: { id },
-        data: { status: 'inactive' }
-      });
+      await prisma.person.update({ where: { id }, data: { status: 'INACTIVE' } });
       res.status(200).json({ message: 'Doador inativado com sucesso.' });
     } catch (error) {
-      console.error('Erro no Inactivate Donor:', error);
-      res.status(500).json({ error: 'Erro ao inativar doador.' });
+      respondError(res, error, 'Erro ao inativar doador.');
     }
   }
 }

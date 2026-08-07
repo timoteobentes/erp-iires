@@ -86,7 +86,7 @@ export function AuthForm() {
       </Form>
 
       <p className="mt-8 text-[14px] text-gray-600">
-        Não tem uma conta? <a href="/signup" className="text-[#635BFF] hover:text-[#524ae3] hover:underline font-medium ml-1">Cadastre-se</a>
+        Acesso restrito à equipe interna do IIRes. Solicite seu usuário à administração.
       </p>
     </div>
   );

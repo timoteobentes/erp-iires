@@ -28,3 +28,6 @@ dist-ssr
 node_modules
 
 /src/generated
+
+# Backup de dados gerado durante a migração para multi-tenant — contém PII, nunca versionar
+prisma/backup-pre-multitenant.json

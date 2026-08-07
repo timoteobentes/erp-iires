@@ -119,7 +119,7 @@ export default function UserProfile() {
   ];
 
   const avatarUrl = getAvatarUrl(user?.avatarConfig, user?.name ?? 'default');
-  const displayRole = user?.role ?? user?.group ?? '—';
+  const displayRole = user?.membership?.role ?? '—';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
@@ -165,7 +165,7 @@ export default function UserProfile() {
                   <p className="text-sm font-bold text-primary-600 mt-1">{displayRole}</p>
                   <div className="mt-3 inline-flex items-center gap-1.5 bg-dark-50 border border-dark-200 px-3 py-1 rounded-full text-xs font-bold text-dark-500 uppercase tracking-wider">
                     <ShieldCheck size={14} className="text-green-500" />
-                    Grupo: {user?.group ?? '—'}
+                    Grupo: {user?.membership?.role ?? '—'}
                   </div>
                 </>
               )}

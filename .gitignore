@@ -1,2 +1,9 @@
 .claude
 TERMO_VOLUNT_IIRES.docx
+
+# Monorepo (raiz)
+node_modules
+dist
+packages/*/dist
+.env
+*.local

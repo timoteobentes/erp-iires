@@ -9,12 +9,11 @@ export interface AuthUser {
   name: string;
   email: string;
   phone?: string | null;
-  cpf?: string | null;
-  role?: string | null;
-  level?: string | null;
-  group?: string | null;
-  status: string;
+  avatarUrl?: string | null;
+  /** @deprecated cliente-local apenas — o backend ainda não persiste customização de avatar. */
   avatarConfig?: string | null;
+  organization: { id: string; slug: string; name: string };
+  membership: { id: string; isOwner: boolean; role: string; permissions: string[] };
 }
 
 interface AuthContextData {

@@ -1,27 +1,42 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { runWithContext } from '../../core/context/request-context.js';
 
-// 1. Estendendo a tipagem do Express (Padrão TypeScript Elite)
-// Isso diz pro TypeScript que, após passar por esse middleware, a "Request" terá um objeto "user"
 declare global {
   namespace Express {
     interface Request {
       user?: {
         id: string;
-        role: string;
-        group: string;
+        name: string;
+        email: string;
+        organizationId: string;
+        membershipId: string;
+        isOwner: boolean;
+        permissions: string[];
       };
     }
   }
 }
 
-export function requireGroups(...groups: string[]) {
+interface AccessTokenPayload {
+  sub: string;
+  name: string;
+  email: string;
+  orgId: string;
+  membershipId: string;
+  isOwner: boolean;
+  permissions: string[];
+}
+
+/** Verifica se o usuário logado tem TODAS as permissões informadas. */
+export function requirePermission(...permissions: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ error: 'Não autenticado.' });
       return;
     }
-    if (!groups.includes(req.user.group)) {
+    const missing = permissions.filter((p) => !req.user!.permissions.includes(p));
+    if (missing.length > 0) {
       res.status(403).json({ error: 'Acesso negado. Permissão insuficiente para este recurso.' });
       return;
     }
@@ -30,7 +45,6 @@ export function requireGroups(...groups: string[]) {
 }
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
-  // Pega o token do cabeçalho de Autorização
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -38,24 +52,34 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  // O padrão é vir "Bearer eyJhbG..." então nós dividimos pelo espaço para pegar só o token
   const [, token] = authHeader.split(' ');
 
   try {
     const secret = process.env.JWT_SECRET || 'secret-fallback-nao-use-em-prod';
-    
-    // Verifica se o token é válido e decodifica os dados que guardamos nele no Login
-    const decoded = jwt.verify(token!, secret) as any;
+    const decoded = jwt.verify(token!, secret) as AccessTokenPayload;
 
-    // Injeta os dados do usuário na requisição para os Controllers poderem usar!
     req.user = {
-      id: decoded.id,
-      role: decoded.role,
-      group: decoded.group,
+      id: decoded.sub,
+      name: decoded.name,
+      email: decoded.email,
+      organizationId: decoded.orgId,
+      membershipId: decoded.membershipId,
+      isOwner: decoded.isOwner,
+      permissions: decoded.permissions,
     };
 
-    // Manda seguir o fluxo (ir para o Controller)
-    next();
+    // A partir daqui, qualquer código async chamado por `next()` (controllers,
+    // o Prisma Client com escopo de tenant, etc.) enxerga este contexto.
+    runWithContext(
+      {
+        userId: decoded.sub,
+        organizationId: decoded.orgId,
+        membershipId: decoded.membershipId,
+        isOwner: decoded.isOwner,
+        permissions: decoded.permissions,
+      },
+      next,
+    );
   } catch (err) {
     res.status(401).json({ error: 'Token inválido ou expirado.' });
   }

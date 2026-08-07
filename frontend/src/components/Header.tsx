@@ -64,7 +64,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
   const { notifications, unreadCount, markRead, markAllRead, deleteOne } = useNotifications();
 
   const displayName = user?.name ?? '—';
-  const displayRole = user?.role ?? user?.group ?? '';
+  const displayRole = user?.membership?.role ?? '';
   const avatarUrl = getAvatarUrl(user?.avatarConfig, user?.name ?? 'default');
 
   const handleNotificationClick = async (n: Notification) => {

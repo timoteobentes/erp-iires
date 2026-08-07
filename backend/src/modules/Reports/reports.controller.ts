@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import prisma from '../../config/prisma.js';
+import { tenantPrisma as prisma } from '../../core/prisma/tenant-client.js';
 import { ReportsService } from './reports.service.js';
 
 export class ReportsController {
@@ -37,19 +37,19 @@ export class ReportsController {
         const transactions = await prisma.transaction.findMany({
           where: buildWhere(filters, true),
           orderBy: { date: 'desc' },
-          include: { project: true, donor: true, partner: true }
+          include: { project: true, person: true }
         });
 
         data = transactions.map((t: any) => ({
           title:         t.title,
           type:          t.type === 'INCOME' ? 'Entrada' : 'Saída',
-          amount:        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount),
+          amount:        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(t.amount)),
           date:          t.date.toISOString().split('T')[0],
           status:        t.status === 'PAID' ? 'Pago' : t.status === 'PENDING' ? 'Pendente' : 'Cancelado',
           paymentMethod: t.paymentMethod || '—',
           observations:  t.observations  || '—',
           projectName:   t.project?.name || '—',
-          partnerName:   t.partner?.name || '—',
+          partnerName:   t.person?.name || '—',
         }));
 
         columns = [
@@ -70,8 +70,8 @@ export class ReportsController {
       // DADOS: DOADORES
       // =========================================================
       } else if (moduleType === 'donors') {
-        const donors = await prisma.donor.findMany({
-          where: buildWhere(filters),
+        const donors = await prisma.person.findMany({
+          where: { ...buildWhere(filters), roles: { has: 'DONOR' } },
           orderBy: { name: 'asc' }
         });
 
@@ -79,10 +79,10 @@ export class ReportsController {
           id: d.id,
           name: d.name,
           document: d.document,
-          type: d.type,
+          type: d.kind,
           email: d.email || 'N/A',
           phone: d.phone || 'N/A',
-          recurrence: d.recurrence,
+          recurrence: d.donationRecurrence,
           status: d.status
         }));
 
@@ -102,8 +102,8 @@ export class ReportsController {
       // DADOS: VOLUNTÁRIOS
       // =========================================================
       } else if (moduleType === 'volunteers') {
-        const volunteers = await prisma.volunteer.findMany({
-          where: buildWhere(filters),
+        const volunteers = await prisma.person.findMany({
+          where: { ...buildWhere(filters), roles: { has: 'VOLUNTEER' } },
           orderBy: { name: 'asc' }
         });
 
@@ -133,14 +133,14 @@ export class ReportsController {
       // DADOS: PARCEIROS
       // =========================================================
       } else if (moduleType === 'partners') {
-        const partners = await prisma.partner.findMany({
-          where: buildWhere(filters),
+        const partners = await prisma.person.findMany({
+          where: { ...buildWhere(filters), roles: { has: 'PARTNER' } },
           orderBy: { name: 'asc' }
         });
 
         data = partners.map((p: any) => ({
           name: p.name,
-          cnpj: p.cnpj || 'N/A',
+          cnpj: p.document || 'N/A',
           partnershipType: p.partnershipType,
           contactName: p.contactName || 'N/A',
           email: p.email || 'N/A',
@@ -169,8 +169,7 @@ export class ReportsController {
           orderBy: { name: 'asc' },
           include: {
             manager: { select: { name: true } },
-            volunteers: { select: { name: true } },
-            partners: { select: { name: true } }
+            persons: { select: { role: true, person: { select: { name: true } } } },
           }
         });
 
@@ -179,8 +178,8 @@ export class ReportsController {
           description: p.description || 'N/A',
           status: p.status,
           manager: p.manager?.name || 'N/A',
-          volunteers: p.volunteers.map((v: any) => v.name).join(', ') || 'N/A',
-          partners: p.partners.map((pt: any) => pt.name).join(', ') || 'N/A',
+          volunteers: p.persons.filter((l: any) => l.role === 'VOLUNTEER').map((l: any) => l.person.name).join(', ') || 'N/A',
+          partners: p.persons.filter((l: any) => l.role === 'PARTNER').map((l: any) => l.person.name).join(', ') || 'N/A',
           startDate: p.startDate ? p.startDate.toISOString().split('T')[0] : 'N/A',
           endDate: p.endDate ? p.endDate.toISOString().split('T')[0] : 'N/A'
         }));

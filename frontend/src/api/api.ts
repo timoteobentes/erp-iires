@@ -29,7 +29,7 @@ function clearSession() {
 }
 
 // Rotas de autenticação própria — nunca disparam refresh ou redirect
-const AUTH_ROUTES = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/reset-password', '/auth/refresh'];
+const AUTH_ROUTES = ['/auth/login', '/auth/forgot-password', '/auth/reset-password', '/auth/refresh'];
 const isAuthRoute = (url?: string) => AUTH_ROUTES.some((r) => url?.includes(r));
 
 api.interceptors.response.use(

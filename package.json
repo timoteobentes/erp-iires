@@ -1,0 +1,18 @@
+{
+  "name": "sigetes",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SIGETES — Sistema de Gestão do Terceiro Setor (monorepo)",
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @sigetes/shared -w @sigetes/config && npm run build -w backend -w frontend",
+    "lint": "npm run lint --workspace=frontend --if-present",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend"
+  }
+}

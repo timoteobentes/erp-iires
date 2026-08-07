@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import ptBR from 'antd/locale/pt_BR';
-import { Form, Input, Button, DatePicker, Select, Row, Col, Card, Skeleton, notification, InputNumber, Slider } from 'antd';
+import { Form, Input, Button, DatePicker, Select, Row, Col, Card, Skeleton, notification, InputNumber, Slider, Tag } from 'antd';
 import { ArrowLeft, Briefcase, Users, AlignLeft, DollarSign, Handshake } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -9,6 +9,13 @@ import { teamService } from '../../People/services/team.service';
 import { volunteersService } from '../../People/services/volunteers.service';
 import { partnersService } from '../../People/services/partners.service';
 import { donorsService } from '../../People/services/donors.service';
+import { InstitutionalContextSelect } from '../../../components/InstitutionalContextSelect';
+
+interface MemberOption {
+  value: string;
+  label: string;
+  kind: 'user' | 'volunteer';
+}
 
 export default function ProjectForm() {
   const navigate = useNavigate();
@@ -18,11 +25,15 @@ export default function ProjectForm() {
 
   const [loadingData, setLoadingData] = useState(isEditing);
   const [submitting, setSubmitting] = useState(false);
-  const [teamOptions, setTeamOptions]         = useState<{ value: string; label: string }[]>([]);
-  const [volunteerOptions, setVolunteerOptions] = useState<{ value: string; label: string }[]>([]);
-  const [partnerOptions, setPartnerOptions]   = useState<{ value: string; label: string }[]>([]);
+  const [leaderOptions, setLeaderOptions]   = useState<{ value: string; label: string }[]>([]);
+  const [allMembers, setAllMembers]         = useState<MemberOption[]>([]);
+  const [partnerOptions, setPartnerOptions] = useState<{ value: string; label: string }[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<{ value: string; label: string }[]>([]);
-  const [donorOptions, setDonorOptions]       = useState<{ value: string; label: string }[]>([]);
+  const [donorOptions, setDonorOptions]     = useState<{ value: string; label: string }[]>([]);
+
+  const selectedLeader = Form.useWatch('managerId', form);
+
+  const memberOptions = allMembers.filter((m) => m.value !== selectedLeader);
 
   // --------------------------------------------------------
   // Carrega opções para todos os selects
@@ -37,12 +48,16 @@ export default function ProjectForm() {
           donorsService.list(),
         ]);
 
-        setTeamOptions(
-          teamData.filter((m) => m.status === 'active').map((m) => ({ value: m.id, label: m.name })),
-        );
-        setVolunteerOptions(
-          volunteersData.filter((v) => v.status === 'active').map((v) => ({ value: v.id, label: v.name })),
-        );
+        const activeTeam = teamData.filter((m) => m.status === 'active');
+        const activeVols = volunteersData.filter((v) => v.status === 'active');
+
+        setLeaderOptions(activeTeam.map((m) => ({ value: m.id, label: m.name })));
+
+        setAllMembers([
+          ...activeTeam.map((m) => ({ value: m.id, label: m.name, kind: 'user' as const })),
+          ...activeVols.map((v) => ({ value: v.id, label: v.name, kind: 'volunteer' as const })),
+        ]);
+
         setPartnerOptions(
           partnersData.filter((p) => p.status === 'active' && p.partnershipType === 'Parceiro').map((p) => ({ value: p.id, label: p.name })),
         );
@@ -70,20 +85,26 @@ export default function ProjectForm() {
         setLoadingData(true);
         const p = await projectsService.getById(id);
 
+        const managerId = p.manager?.id ?? undefined;
+        const allMemberIds = [
+          ...(p.teamMembers ?? []).filter((m) => m.id !== managerId).map((m) => m.id),
+          ...(p.volunteers  ?? []).map((v) => v.id),
+        ];
+
         form.setFieldsValue({
           name: p.name,
           status: p.status,
           description: p.description ?? '',
-          managerId: p.manager?.id ?? undefined,
+          managerId,
           startDate: p.startDate ? dayjs(p.startDate) : undefined,
           endDate: p.endDate ? dayjs(p.endDate) : undefined,
-          teamMemberIds: (p.teamMembers ?? []).map((m) => m.id),
-          volunteerIds: (p.volunteers ?? []).map((v) => v.id),
+          memberIds: allMemberIds,
           partnerTypeIds: (p.partners ?? []).filter((pt) => pt.partnershipType === 'Parceiro').map((pt) => pt.id),
           supplierTypeIds: (p.partners ?? []).filter((pt) => pt.partnershipType === 'Fornecedor').map((pt) => pt.id),
           donorIds: (p.donors ?? []).map((d) => d.id),
           budget: p.budget ?? undefined,
           progress: p.progress ?? 0,
+          contextId: p.contextId ?? p.context?.id ?? undefined,
         });
       } catch {
         notification.error({
@@ -103,6 +124,12 @@ export default function ProjectForm() {
   // Submit
   // --------------------------------------------------------
   const onFinish = async (values: any) => {
+    const memberIds: string[] = values.memberIds ?? [];
+    const kindMap = new Map(allMembers.map((m) => [m.value, m.kind]));
+
+    const teamMemberIds = memberIds.filter((mid) => kindMap.get(mid) === 'user');
+    const volunteerIds  = memberIds.filter((mid) => kindMap.get(mid) === 'volunteer');
+
     const partnerIds = [
       ...(values.partnerTypeIds ?? []),
       ...(values.supplierTypeIds ?? []),
@@ -115,12 +142,13 @@ export default function ProjectForm() {
       managerId: values.managerId || undefined,
       startDate: values.startDate ? values.startDate.toISOString() : new Date().toISOString(),
       endDate: values.endDate ? values.endDate.toISOString() : null,
-      teamMemberIds: values.teamMemberIds ?? [],
-      volunteerIds: values.volunteerIds ?? [],
+      teamMemberIds,
+      volunteerIds,
       partnerIds,
       donorIds: values.donorIds ?? [],
       budget: values.budget !== undefined && values.budget !== null ? Number(values.budget) : null,
       progress: values.progress ?? 0,
+      contextId: values.contextId || null,
     };
 
     try {
@@ -247,6 +275,16 @@ export default function ProjectForm() {
               </Form.Item>
             </Col>
 
+            <Col xs={24} md={16}>
+              <Form.Item
+                label={<span className="text-dark-600 font-medium">Relacionado a</span>}
+                name="contextId"
+                extra="Esta classificação não altera a titularidade: o projeto continua sendo do IIRes."
+              >
+                <InstitutionalContextSelect size="large" className="w-full" />
+              </Form.Item>
+            </Col>
+
             <Col xs={24} md={8}>
               <Form.Item
                 label={<span className="text-dark-600 font-medium">Data de Início</span>}
@@ -299,41 +337,35 @@ export default function ProjectForm() {
                   className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
                   showSearch
                   optionFilterProp="label"
-                  options={teamOptions}
-                />
-              </Form.Item>
-            </Col>
-
-            <Col xs={24} md={12}>
-              <Form.Item
-                label={<span className="text-dark-600 font-medium">Equipe Interna</span>}
-                name="teamMemberIds"
-              >
-                <Select
-                  mode="multiple"
-                  size="large"
-                  placeholder="Adicione membros da equipe interna"
-                  className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
-                  showSearch
-                  optionFilterProp="label"
-                  options={teamOptions}
+                  options={leaderOptions}
                 />
               </Form.Item>
             </Col>
 
             <Col span={24}>
               <Form.Item
-                label={<span className="text-dark-600 font-medium">Voluntários</span>}
-                name="volunteerIds"
+                label={<span className="text-dark-600 font-medium">Membros do Projeto</span>}
+                name="memberIds"
               >
                 <Select
                   mode="multiple"
                   size="large"
-                  placeholder="Adicione voluntários ao projeto"
+                  placeholder="Adicione equipe interna e voluntários"
                   className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
                   showSearch
                   optionFilterProp="label"
-                  options={volunteerOptions}
+                  options={memberOptions}
+                  optionRender={(opt) => {
+                    const kind = (opt.data as MemberOption).kind;
+                    return (
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{opt.label}</span>
+                        {kind === 'volunteer'
+                          ? <Tag color="green" className="text-xs m-0">Voluntário</Tag>
+                          : <Tag color="blue"  className="text-xs m-0">Equipe</Tag>}
+                      </div>
+                    );
+                  }}
                 />
               </Form.Item>
             </Col>

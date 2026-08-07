@@ -1,112 +1,54 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// ============================================================================
+// SIGETES — Sistema de Gestão do Terceiro Setor
+// Modelo de dados multi-tenant (v1.0 — Fase 0/1: Fundação)
+// Base: docs/schema-draft.prisma, adaptado ao projeto real.
+//
+// Convenções:
+//   • Toda tabela de domínio tem organizationId + @@index([organizationId])
+//   • Todo @unique de domínio é composto com organizationId
+//   • Dinheiro = Decimal(14,2). NUNCA Float.
+//   • Arquivos = metadados aqui, bytes no Supabase Storage
+//   • Soft delete via deletedAt onde faz sentido
+// ============================================================================
 
 generator client {
   provider = "prisma-client-js"
 }
 
+// A URL de conexão não fica aqui: o backend usa @prisma/adapter-pg
+// (ver backend/src/config/prisma.ts) para conectar via DATABASE_URL,
+// e prisma.config.ts usa DIRECT_URL para migrations.
 datasource db {
   provider = "postgresql"
 }
 
-// TABELA DE ENDEREÇOS
-model Address {
-  id           String   @id @default(uuid())
-  cep          String
-  street       String   
-  number       String
-  neighborhood String
-  city         String
-  state        String
+// ============================================================================
+// CAMADA PLATAFORMA  (sem organizationId — é o nível acima do tenant)
+// ============================================================================
 
-  // Relação com Usuários (Equipe)
-  userId       String?  @unique
-  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Relação com Voluntários
-  volunteerId  String?  @unique
-  volunteer    Volunteer? @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
-
-  // Relação com Doadores
-  donorId      String?  @unique
-  donor        Donor?   @relation(fields: [donorId], references: [id], onDelete: Cascade)
-
-  // Relação com Parceiros
-  partnerId    String?  @unique
-  partner      Partner? @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@map("addresses")
-}
-
-// TABELA DE USUÁRIOS
+/// Identidade global de login. NÃO guarda dados de RH — isso é Member.
 model User {
-  id            String  @id @default(uuid())
-  name          String
-  email         String  @unique
-  personalEmail String?
-  passwordHash  String
+  id           String  @id @default(uuid())
+  name         String
+  email        String  @unique
+  passwordHash String
+  avatarUrl    String?
+  phone        String?
 
-  // Campos que preencheremos depois no módulo de Equipe, deixaremos opcionais por enquanto
-  cpf           String?   @unique
-  phone         String?
-  birthDate     DateTime?
-  rg            String?
-  nationality   String?
-  maritalStatus String?
-  role          String?
-  level         String?
-  group         String?
-  status        String    @default("active")
-
-  address Address?
-
-  // CAMPOS PARA RECUPERAÇÃO DE SENHA
-  resetPasswordToken   String?
+  emailVerifiedAt      DateTime?
+  resetPasswordToken   String?   @unique
   resetPasswordExpires DateTime?
 
-  // CAMPOS PARA REFRESH TOKEN
-  refreshToken        String?   @unique
-  refreshTokenExpires DateTime?
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean @default(false)
 
-  // Tipo de vínculo com a organização
-  bondType            String   @default("CLT") // CLT | Prestador | Estágio | Voluntário
+  isPlatformAdmin Boolean    @default(false) // console interno do SIGETES
+  status          UserStatus @default(ACTIVE)
+  lastLoginAt     DateTime?
 
-  // Dados financeiros / pagamento
-  pis               String?
-  voterRegistration String?   // CLT — Título de Eleitor
-  hasCnpj           Boolean?  // Prestador — possui CNPJ
-  cnpjNumber        String?   // Prestador — CNPJ
-  issuesInvoice     Boolean?  // Prestador — emite nota fiscal
-  bankName          String?
-  bankAccount       String?
-  bankAgency        String?
-  pixKey            String?
-  salary            Float?
-  // Jornada (Estágio)
-  workDays          String[]
-  workHours         String?
-  // Documentos anexados (JSON array de {name, type, size, data})
-  documents         Json?
-
-  // CONFIGURAÇÃO DO AVATAR (JSON com as opções escolhidas no editor)
-  avatarConfig        String?
-
-  // Projetos Gerenciados
-  managedProjects Project[]
-
-  // Projetos como membro da equipe
-  teamProjects    Project[] @relation("ProjectTeamMembers")
-
-  // Voluntários supervisionados
-  supervisedVolunteers Volunteer[] @relation("VolunteerSupervisor")
-
-  // Notificações
-  notifications Notification[]
+  memberships   Membership[]
+  refreshTokens RefreshToken[]
+  sentInvites   Invite[]       @relation("InviteSender")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -114,153 +56,571 @@ model User {
   @@map("users")
 }
 
-// TABELA DE VOLUNTÁRIOS
-model Volunteer {
-  id             String    @id @default(uuid())
-  name           String
-  birthDate      DateTime?
-  cpf            String    @unique
-  phone          String?
-  email          String?
-  profession     String?
-  
-  // Perfil e Engajamento
-  skills         String[]  // Array nativo no Postgres
-  availability   String?   // Manhã, Tarde, Noite, Flexível
-  
-  // Documentação complementar para o Termo de Adesão
-  rg            String?   // Registro Geral (identidade)
-  nationality   String?   // Nacionalidade (ex: brasileiro)
-  maritalStatus String?   // Estado civil
-  services      String?   @db.Text // Atividades/serviços a serem desenvolvidos
-  schedule      String?   // Período e horário do voluntariado
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
 
-  // Cargo / perfil organizacional
-  role          String?
-  level         String?
-  group         String?
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // SHA-256 — nunca o token em claro
+  familyId  String // detecção de reuso: reuso revoga a família inteira
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
 
-  // Jornada estruturada
-  workDays      String[]
-  workHours     String?
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
 
-  // Documentos
-  documents     Json?
+/// O TENANT. Um instituto / organização assinante.
+model Organization {
+  id          String      @id @default(uuid())
+  slug        String      @unique // usado em URL e futuro subdomínio
+  legalName   String // Razão social
+  tradeName   String? // Nome fantasia
+  document    String      @unique // CNPJ
+  legalNature LegalNature
+  cnae        String?
+  foundedAt   DateTime?
 
-  // Supervisor responsável pelo voluntário
-  supervisorId  String?
-  supervisor    User?     @relation("VolunteerSupervisor", fields: [supervisorId], references: [id])
+  stateRegistration     String?
+  municipalRegistration String?
 
-  // Emergência e Jurídico
+  email   String
+  phone   String?
+  website String?
+
+  // Endereço institucional (denormalizado — é 1-1 e sempre consultado junto)
+  zipCode      String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+
+  // Responsável legal
+  legalRepName     String?
+  legalRepDocument String?
+  legalRepRole     String?
+  legalRepEmail    String?
+
+  // Perfil institucional (usado em segmentação e onboarding)
+  actionAreas    String[] // Educação, Saúde, Meio Ambiente, Cultura...
+  certifications String[] // CEBAS, OSCIP, Utilidade Pública Federal/Estadual/Municipal
+  sizeRange      String? // 1-5, 6-20, 21-50, 51-200, 200+
+
+  // Branding (white-label — plano Institucional)
+  logoUrl    String?
+  brandColor String?
+
+  // Uso / limites
+  storageUsedBytes BigInt @default(0)
+
+  status      OrganizationStatus @default(ACTIVE)
+  onboardedAt DateTime?
+
+  subscription          Subscription?
+  memberships           Membership[]
+  roles                 Role[]
+  invites               Invite[]
+  members               Member[]
+  persons               Person[]
+  projects              Project[]
+  transactions          Transaction[]
+  accountPlans          AccountPlan[]
+  costCenters           CostCenter[]
+  institutionalContexts InstitutionalContext[]
+  attachments           Attachment[]
+  auditLogs             AuditLog[]
+  notifications         Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organizations")
+}
+
+enum LegalNature {
+  ASSOCIACAO
+  FUNDACAO
+  INSTITUTO
+  OSCIP
+  ORGANIZACAO_SOCIAL
+  COOPERATIVA
+  EMPRESA_LTDA
+  EMPRESA_SA
+  MEI
+  OUTRO
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED // inadimplência
+  CANCELED
+}
+
+/// Vínculo usuário ↔ organização. Um usuário pode estar em várias.
+model Membership {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleId         String
+  role           Role         @relation(fields: [roleId], references: [id])
+
+  isOwner  Boolean          @default(false) // sempre ≥ 1 por organização
+  status   MembershipStatus @default(ACTIVE)
+  memberId String?          @unique // ficha de RH, se houver
+  member   Member?          @relation(fields: [memberId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("memberships")
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// Grupo de acesso. Pertence a UMA organização (cada instituto tem os seus).
+model Role {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) // semeado; não pode ser excluído
+  permissions String[] // ex.: ["finance.transactions:write", "projects:read"]
+
+  memberships Membership[]
+  invites     Invite[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("roles")
+}
+
+model Invite {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  roleId         String
+  role           Role         @relation(fields: [roleId], references: [id])
+  tokenHash      String       @unique
+  invitedById    String
+  invitedBy      User         @relation("InviteSender", fields: [invitedById], references: [id])
+
+  status     InviteStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([organizationId, email, status])
+  @@index([organizationId])
+  @@map("invites")
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+// ---------------------------------------------------------------------------
+// BILLING
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id           String  @id @default(uuid())
+  code         String  @unique // essencial | gestao | institucional | rede
+  name         String
+  tagline      String?
+  priceMonthly Decimal @db.Decimal(10, 2)
+  priceYearly  Decimal @db.Decimal(10, 2)
+  currency     String  @default("BRL")
+
+  // Limites
+  maxUsers          Int? // null = ilimitado
+  maxActiveProjects Int?
+  maxPersons        Int?
+  storageMb         Int?
+
+  features  String[] // chaves de entitlement: ["finance.cost_centers","roles.custom",...]
+  isPublic  Boolean  @default(true)
+  sortOrder Int      @default(0)
+
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("plans")
+}
+
+model Subscription {
+  id             String       @id @default(uuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  planId         String
+  plan           Plan         @relation(fields: [planId], references: [id])
+
+  status   SubscriptionStatus @default(TRIALING)
+  interval BillingInterval    @default(MONTHLY)
+
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  canceledAt         DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  graceEndsAt        DateTime? // período de tolerância antes de suspender
+
+  // Gateway — a InfinitePay tem webhook de confirmação, mas não tem
+  // entidade de assinatura nativa; o ciclo de cobrança é nosso. Ver BILLING.md
+  gateway           String    @default("infinitepay")
+  gatewayCustomerId String?
+  nextChargeAt      DateTime?
+  lastChargedAt     DateTime?
+  autoRenewEnabled  Boolean   @default(false) // opt-in do cliente no cartão
+
+  // Add-ons contratados
+  extraUsers     Int @default(0)
+  extraStorageGb Int @default(0)
+
+  invoices Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELED
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+model Invoice {
+  id             String       @id @default(uuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  amount      Decimal       @db.Decimal(10, 2)
+  status      InvoiceStatus @default(PENDING)
+  periodStart DateTime
+  periodEnd   DateTime
+  dueDate     DateTime
+  paidAt      DateTime?
+
+  method      String? // PIX | CARD | MANUAL
+  externalId  String? @unique // id da cobrança na InfinitePay
+  checkoutUrl String?
+  pixCode     String? @db.Text
+  receiptUrl  String?
+
+  // baixa manual (plano Rede, empenho público, transferência)
+  paidManually Boolean @default(false)
+  paidById     String?
+
+  remindersSentAt DateTime[]
+
+  createdAt DateTime @default(now())
+
+  // antiduplicidade: o job diário pode rodar duas vezes
+  @@unique([subscriptionId, periodStart])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  REFUNDED
+  CANCELED
+}
+
+/// Idempotência de webhooks do gateway
+model WebhookEvent {
+  id          String    @id @default(uuid())
+  gateway     String    @default("infinitepay")
+  externalId  String
+  type        String
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([gateway, externalId])
+  @@map("webhook_events")
+}
+
+// ============================================================================
+// CAMADA TENANT  (tudo daqui pra baixo tem organizationId)
+// ============================================================================
+
+/// PESSOA UNIFICADA (PF ou PJ). Substitui Volunteer + Donor + Partner.
+/// A mesma pessoa pode ser voluntária E doadora sem duplicar cadastro.
+model Person {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  kind      PersonKind
+  roles     PersonRole[] // [VOLUNTEER, DONOR] — papéis acumuláveis
+  name      String // Nome ou Razão Social
+  tradeName String?
+  document  String? // CPF ou CNPJ
+  email     String?
+  phone     String?
+
+  // PF
+  birthDate     DateTime?
+  rg            String?
+  nationality   String?
+  maritalStatus String?
+  profession    String?
+
+  // Endereço
+  zipCode      String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+
+  // Voluntariado
+  skills          String[]
+  availability    String?
+  services        String?   @db.Text
+  schedule        String?
+  acceptedTermsAt DateTime?
+  supervisorId    String?
+  supervisor      Member?   @relation("PersonSupervisor", fields: [supervisorId], references: [id])
+
+  // Doação
+  donationRecurrence String? // MONTHLY | YEARLY | ONE_TIME
+  preferredPayment   String?
+
+  // Parceria
+  partnershipType String?
+  contactName     String?
+
   emergencyName  String?
   emergencyPhone String?
-  acceptedTerms  Boolean   @default(false)
-  status         String    @default("active")
+  notes          String? @db.Text
 
-  // Métricas (Poderão ser atualizadas por triggers ou funções depois)
-  hoursDonated   Int       @default(0)
-  activeProjects Int       @default(0)
+  status    RecordStatus @default(ACTIVE)
+  deletedAt DateTime?
 
-  // O link com a nossa tabela universal de Endereços
-  address        Address?
+  contextId    String?
+  context      InstitutionalContext? @relation(fields: [contextId], references: [id])
+  transactions Transaction[]
+  projects     ProjectPerson[]
+  attachments  Attachment[]
 
-  // Projetos atuantes
-  projects       Project[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  @@map("volunteers")
+  @@unique([organizationId, document])
+  @@index([organizationId, status])
+  @@index([organizationId, name])
+  @@map("persons")
 }
 
-// TABELA DE DOADORES
-model Donor {
-  id            String   @id @default(uuid())
-  type          String   // 'PF' ou 'PJ'
-  name          String   // Nome ou Razão Social
-  document      String   @unique // CPF ou CNPJ
+enum PersonKind {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum PersonRole {
+  VOLUNTEER
+  DONOR
+  PARTNER
+  SUPPLIER
+  BENEFICIARY
+}
+
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+/// FICHA DE COLABORADOR — dados de vínculo e RH. Separada de User (login).
+model Member {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name          String
+  email         String
+  personalEmail String?
+  document      String? // CPF
   phone         String?
-  email         String?
-  recurrence    String   // 'Mensal', 'Anual', 'Única', etc
-  paymentMethod String   // 'PIX', 'Cartão', 'Transferência', etc
-  status        String   @default("active")
-  
-  // O link com a nossa tabela universal de Endereços
-  address       Address?
-  
-  // Transações
-  transactions  Transaction[]
+  birthDate     DateTime?
+  rg            String?
+  nationality   String?
+  maritalStatus String?
 
-  // Projetos vinculados
-  projects      Project[]
+  jobTitle   String? // Cargo
+  level      String? // Júnior, Pleno, Sênior
+  department String? // Financeiro, Comercial, Projetos
+  bondType   BondType  @default(CLT)
+  hiredAt    DateTime?
+  endedAt    DateTime?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  // 🔒 Sensível — exige permission people.employees:read_sensitive
+  pis               String?
+  voterRegistration String?
+  hasCnpj           Boolean?
+  cnpjNumber        String?
+  issuesInvoice     Boolean?
+  bankName          String?
+  bankAgency        String?
+  bankAccount       String?
+  pixKey            String?
+  salary            Decimal? @db.Decimal(12, 2)
 
-  @@map("donors")
+  workDays  String[]
+  workHours String?
+
+  zipCode      String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+
+  status    RecordStatus @default(ACTIVE)
+  deletedAt DateTime?
+
+  membership          Membership?
+  managedProjects     Project[]              @relation("ProjectManager")
+  projectMemberships  ProjectMember[]
+  supervisedPersons   Person[]               @relation("PersonSupervisor")
+  responsibleContexts InstitutionalContext[] @relation("ContextResponsible")
+  attachments         Attachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, document])
+  @@unique([organizationId, email])
+  @@index([organizationId, status])
+  @@map("members")
 }
 
-// TABELA DE PARCEIROS
-model Partner {
-  id              String   @id @default(uuid())
-  name            String   // Razão Social / Nome da Instituição
-  cnpj            String   @unique
-  contactName     String   // Nome do responsável/contato
-  email           String?
-  phone           String?
-  partnershipType String   // 'Financeiro', 'Serviços', 'Institucional'
-  status          String   @default("active")
-  
-  // Relação 1-1 com a tabela Address
-  address         Address?
-
-  // Projetos apoiados
-  projects        Project[]
-
-  // Transações
-  transactions    Transaction[]
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@map("partners")
+enum BondType {
+  CLT
+  PJ
+  INTERNSHIP
+  VOLUNTEER
+  TEMPORARY
 }
 
-// TABELA DE PROJETOS
 model Project {
-  id          String   @id @default(uuid())
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  code        String?
   name        String
-  description String   @db.Text
+  description String?       @db.Text
   startDate   DateTime
   endDate     DateTime?
-  status      String   @default("planning") // planning, active, completed, canceled
-  budget      Float?
-  progress    Int      @default(0) // 0-100 (percentual de conclusão)
+  status      ProjectStatus @default(PLANNING)
+  budget      Decimal?      @db.Decimal(14, 2)
+  progress    Int           @default(0)
 
-  // Relações
-  managerId   String
-  manager     User     @relation(fields: [managerId], references: [id])
+  managerId String?
+  manager   Member? @relation("ProjectManager", fields: [managerId], references: [id])
 
-  teamMembers User[]      @relation("ProjectTeamMembers") // Relação N-N nomeada (membros da equipe interna)
-  volunteers  Volunteer[] // Relação N-N implícita
-  partners    Partner[]   // Relação N-N implícita
-  donors      Donor[]     // Relação N-N implícita
+  contextId String?
+  context   InstitutionalContext? @relation(fields: [contextId], references: [id])
 
-  // Transações
+  members      ProjectMember[]
+  persons      ProjectPerson[]
   transactions Transaction[]
+  attachments  Attachment[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
   @@map("projects")
 }
 
-// PLANO DE CONTAS
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELED
+}
+
+model ProjectMember {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  role      String?
+
+  @@unique([projectId, memberId])
+  @@map("project_members")
+}
+
+model ProjectPerson {
+  id        String     @id @default(uuid())
+  projectId String
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  personId  String
+  person    Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  role      PersonRole
+  hours     Int?
+
+  @@unique([projectId, personId, role])
+  @@map("project_persons")
+}
+
 model AccountPlan {
-  id          String        @id @default(uuid())
-  code        String        @unique
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  code        String
   name        String
-  type        String        // INCOME | EXPENSE | BOTH
+  type        AccountType
   parentId    String?
   parent      AccountPlan?  @relation("AccountPlanChildren", fields: [parentId], references: [id])
   children    AccountPlan[] @relation("AccountPlanChildren")
@@ -269,128 +629,240 @@ model AccountPlan {
 
   transactions Transaction[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@unique([organizationId, code])
+  @@index([organizationId])
   @@map("account_plans")
 }
 
-// CENTRO DE CUSTOS
+enum AccountType {
+  INCOME
+  EXPENSE
+  BOTH
+}
+
 model CostCenter {
-  id          String        @id @default(uuid())
-  code        String        @unique
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  code        String
   name        String
   description String?
-  active      Boolean       @default(true)
+  active      Boolean @default(true)
 
   transactions Transaction[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@unique([organizationId, code])
+  @@index([organizationId])
   @@map("cost_centers")
 }
 
-// TABELA DE TRANSAÇÕES FINANCEIRAS
 model Transaction {
-  id          String   @id @default(uuid())
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   title       String
   description String?
-  type        String   // INCOME | EXPENSE
-  amount      Float
+  type        TransactionType
+  amount      Decimal           @db.Decimal(14, 2) // ⚠️ nunca Float
   date        DateTime
-  status      String   @default("PAID") // PENDING | PAID | CANCELED
-  category    String
+  dueDate     DateTime?
+  paidAt      DateTime?
+  status      TransactionStatus @default(PENDING)
+  category    String? // rótulo livre complementar ao plano de contas
 
-  // Forma de pagamento e plano de contas
   paymentMethod String?
-  observations  String?  @db.Text
-  attachments   Json?    // [{name, mimeType, size, data (base64)}]
+  observations  String? @db.Text
 
-  // Plano de contas e centro de custo
   accountPlanId String?
   accountPlan   AccountPlan? @relation(fields: [accountPlanId], references: [id])
   costCenterId  String?
   costCenter    CostCenter?  @relation(fields: [costCenterId], references: [id])
 
-  // Parcelamento e recorrência
-  groupId             String?   // UUID que agrupa parcelas ou recorrências
-  groupType           String?   // INSTALLMENT | RECURRING
-  installmentNumber   Int?      // 1-based (1 de 3, 2 de 3...)
-  installmentTotal    Int?      // total de parcelas
-  recurrenceFrequency String?   // WEEKLY | MONTHLY | QUARTERLY | ANNUALLY
+  // Parcelamento / recorrência
+  groupId             String?
+  groupType           String? // INSTALLMENT | RECURRING
+  installmentNumber   Int?
+  installmentTotal    Int?
+  recurrenceFrequency String?
   recurrenceEndDate   DateTime?
 
-  // Relacionamentos Opcionais
-  projectId   String?
-  project     Project? @relation(fields: [projectId], references: [id])
+  projectId String?
+  project   Project?              @relation(fields: [projectId], references: [id])
+  personId  String?
+  person    Person?               @relation(fields: [personId], references: [id])
+  contextId String?
+  context   InstitutionalContext? @relation(fields: [contextId], references: [id])
 
-  donorId     String?
-  donor       Donor?   @relation(fields: [donorId], references: [id])
+  attachments Attachment[]
 
-  partnerId   String?
-  partner     Partner? @relation(fields: [partnerId], references: [id])
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([groupId])
-
+  @@index([organizationId, date])
+  @@index([organizationId, status, type])
+  @@index([organizationId, groupId])
   @@map("transactions")
 }
 
-// TABELA DE NOTIFICAÇÕES
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELED
+}
+
+/// Contextos institucionais / portfólio — recurso do plano Institucional
+model InstitutionalContext {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name         String
+  description  String?              @db.Text
+  type         ContextType
+  relationship ContextRelationship?
+  status       ContextStatus        @default(ACTIVE)
+
+  responsibleId String?
+  responsible   Member?   @relation("ContextResponsible", fields: [responsibleId], references: [id])
+  startDate     DateTime?
+  endDate       DateTime?
+  notes         String?   @db.Text
+
+  projects     Project[]
+  transactions Transaction[]
+  persons      Person[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId, type, status])
+  @@map("institutional_contexts")
+}
+
+enum ContextType {
+  INSTITUTIONAL
+  STRATEGIC_PROJECT
+  PARTNER_COMPANY
+  COMMUNITY
+  PROGRAM
+  AGREEMENT
+  PUBLIC_NOTICE
+  EVENT
+  RESEARCH_FRONT
+  SUPPORTED_INITIATIVE
+  STRATEGIC_RELATIONSHIP
+}
+
+enum ContextRelationship {
+  INTERNAL
+  TECHNICAL_COOPERATION
+  STRATEGIC_PARTNERSHIP
+  SUPPORTED_INITIATIVE
+  INCUBATED_INITIATIVE
+  RESEARCH_AND_DEVELOPMENT
+  COMMERCIAL_RELATIONSHIP
+}
+
+enum ContextStatus {
+  ACTIVE
+  PAUSED
+  FINISHED
+  ARCHIVED
+}
+
+/// Metadados de arquivo. Os bytes ficam no Supabase Storage.
+model Attachment {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String  @unique // org/{orgId}/transactions/{id}/{uuid}-nome.pdf
+  category   String? // COMPROVANTE | CONTRATO | TERMO | RG | CPF ...
+
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  personId      String?
+  person        Person?      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  memberId      String?
+  member        Member?      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  projectId     String?
+  project       Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([organizationId])
+  @@map("attachments")
+}
+
 model Notification {
-  id          String   @id @default(uuid())
-  userId      String?  // null = notificação global (todos os usuários veem)
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  userId      String? // null = todos da organização
   title       String
-  description String   @db.Text
-  type        String   @default("info") // success | warning | info | error
-  isRead      Boolean  @default(false)
-  link        String?  // rota opcional para navegar ao clicar
+  description String  @db.Text
+  type        String  @default("info")
+  isRead      Boolean @default(false)
+  link        String?
 
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
-  createdAt   DateTime @default(now())
-
-  @@index([userId, isRead])
-  @@index([createdAt])
-
+  @@index([organizationId, userId, isRead])
   @@map("notifications")
 }
 
-// TABELA DE AUDITORIA (LOGS DE SISTEMA)
-model SystemLog {
-  id           String   @id @default(uuid())
-  userId       String?
-  userEmail    String?
-  userName     String?
-  action       String   // ex: CREATE, UPDATE, DELETE, LOGIN, SIGNUP, EXPORT, READ
-  module       String   // ex: AUTH, TEAM, PROJECTS, FINANCE, REPORTS
-  description  String   @db.Text
-  endpoint     String?
-  method       String?
-  ipAddress    String?
-  userAgent    String?
-  recordId     String?
-  tableName    String?
-  oldData      Json?
-  newData      Json?
-  success      Boolean  @default(true)
+/// Append-only. Nunca sofre UPDATE ou DELETE.
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  userId      String?
+  userEmail   String?
+  userName    String?
+  action      String // CREATE | UPDATE | DELETE | LOGIN | EXPORT
+  module      String
+  description String  @db.Text
+
+  endpoint  String?
+  method    String?
+  ipAddress String?
+  userAgent String?
+  recordId  String?
+  tableName String?
+  oldData   Json?
+  newData   Json?
+
+  success      Boolean @default(true)
   statusCode   Int?
   responseTime Int?
-  errorMessage String?  @db.Text
-  createdAt    DateTime @default(now())
+  errorMessage String? @db.Text
 
-  @@index([recordId])
-  @@index([userId])
-  @@index([action])
-  @@index([module])
-  @@index([createdAt])
-  @@index([success])
-  @@index([tableName])
-  @@index([userEmail])
-  @@index([createdAt, userId])
+  createdAt DateTime @default(now())
 
-  @@map("logs_sistema")
+  @@index([organizationId, createdAt])
+  @@index([organizationId, module, action])
+  @@index([organizationId, recordId])
+  @@map("audit_logs")
 }

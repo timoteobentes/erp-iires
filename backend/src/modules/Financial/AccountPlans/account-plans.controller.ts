@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
-import prisma from '../../../config/prisma.js';
+import { tenantPrisma as prisma } from '../../../core/prisma/tenant-client.js';
+import { respondError } from '../../../shared/utils/respond-error.js';
 
 export class AccountPlansController {
 
@@ -42,16 +43,17 @@ export class AccountPlansController {
       if (!code || !name || !type) {
         res.status(400).json({ error: 'code, name e type são obrigatórios.' }); return;
       }
+      // organizationId é injetado automaticamente pelo tenantPrisma (ver core/prisma/tenant-client.ts);
+      // o `as any` só contorna a checagem estática, que não enxerga essa injeção em tempo de execução.
       const plan = await prisma.accountPlan.create({
-        data: { code, name, type, description: description ?? null, parentId: parentId || null },
+        data: { code, name, type, description: description ?? null, parentId: parentId || null } as any,
       });
       res.status(201).json({ accountPlan: plan });
     } catch (error: any) {
       if (error.code === 'P2002') {
         res.status(409).json({ error: 'Código já cadastrado.' }); return;
       }
-      console.error('Erro ao criar plano de contas:', error);
-      res.status(500).json({ error: 'Erro interno.' });
+      respondError(res, error, 'Erro ao criar plano de contas.');
     }
   }
 
@@ -71,10 +73,8 @@ export class AccountPlansController {
       });
       res.json({ accountPlan: plan });
     } catch (error: any) {
-      if (error.code === 'P2025') { res.status(404).json({ error: 'Não encontrado.' }); return; }
       if (error.code === 'P2002') { res.status(409).json({ error: 'Código já cadastrado.' }); return; }
-      console.error('Erro ao atualizar plano de contas:', error);
-      res.status(500).json({ error: 'Erro interno.' });
+      respondError(res, error, 'Erro ao atualizar plano de contas.');
     }
   }
 
@@ -86,9 +86,7 @@ export class AccountPlansController {
       });
       res.json({ message: 'Plano de contas desativado.' });
     } catch (error: any) {
-      if (error.code === 'P2025') { res.status(404).json({ error: 'Não encontrado.' }); return; }
-      console.error('Erro ao desativar plano de contas:', error);
-      res.status(500).json({ error: 'Erro interno.' });
+      respondError(res, error, 'Erro ao desativar plano de contas.');
     }
   }
 }

@@ -10,6 +10,7 @@ import reportsRoutes from './modules/Reports/reports.routes.js';
 import notificationsRoutes from './modules/Notifications/notifications.routes.js';
 import accountPlansRoutes from './modules/Financial/AccountPlans/account-plans.routes.js';
 import costCentersRoutes from './modules/Financial/CostCenters/cost-centers.routes.js';
+import institutionalContextsRoutes from './modules/InstitutionalContexts/institutional-contexts.routes.js';
 
 const routes = Router();
 
@@ -24,5 +25,6 @@ routes.use('/reports', reportsRoutes);
 routes.use('/notifications', notificationsRoutes);
 routes.use('/account-plans', accountPlansRoutes);
 routes.use('/cost-centers', costCentersRoutes);
+routes.use('/institutional-contexts', institutionalContextsRoutes);
 
 export default routes;

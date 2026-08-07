@@ -11,6 +11,7 @@ import {
   changePasswordSchema,
   updateMeSchema,
   refreshTokenSchema,
+  switchOrgSchema,
 } from '../../shared/schemas/auth.schemas.js';
 
 const authRoutes = Router();
@@ -33,7 +34,7 @@ const forgotPasswordLimiter = rateLimit({
 });
 
 // Rotas PÚBLICAS
-authRoutes.post('/signup', validate(signUpSchema), authController.signUp);
+authRoutes.post('/signup', loginLimiter, validate(signUpSchema), authController.signUp);
 authRoutes.post('/login', loginLimiter, validate(signInSchema), authController.signIn);
 authRoutes.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), authController.forgotPassword);
 authRoutes.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
@@ -45,6 +46,7 @@ authRoutes.post('/refresh', validate(refreshTokenSchema), authController.refresh
 authRoutes.get('/me', authMiddleware, authController.getMe);
 authRoutes.patch('/me', authMiddleware, validate(updateMeSchema), authController.updateMe);
 authRoutes.patch('/change-password', authMiddleware, validate(changePasswordSchema), authController.changePassword);
+authRoutes.post('/switch-org', authMiddleware, validate(switchOrgSchema), authController.switchOrg);
 authRoutes.post('/logout', authMiddleware, authController.logout);
 
 export default authRoutes;

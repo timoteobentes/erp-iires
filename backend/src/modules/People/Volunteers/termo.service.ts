@@ -1,24 +1,20 @@
 import PDFDocument from 'pdfkit';
 
-interface AddressData {
-  street?: string | null;
-  number?: string | null;
-  neighborhood?: string | null;
-  cep?: string | null;
-  city?: string | null;
-  state?: string | null;
-}
-
 interface VolunteerTermoData {
   name: string;
-  cpf: string;
+  document?: string | null;
   rg?: string | null;
   nationality?: string | null;
   maritalStatus?: string | null;
   profession?: string | null;
   services?: string | null;
   schedule?: string | null;
-  address?: AddressData | null;
+  street?: string | null;
+  number?: string | null;
+  neighborhood?: string | null;
+  zipCode?: string | null;
+  city?: string | null;
+  state?: string | null;
   supervisor?: { name: string } | null;
 }
 
@@ -75,20 +71,19 @@ export async function generateVolunteerTermoPDF(volunteer: VolunteerTermoData): 
       .moveDown(1);
 
     // ── Bloco do Voluntário ─────────────────────────────────────
-    const addr = volunteer.address;
-    const street       = fmt(addr?.street);
-    const number       = fmt(addr?.number, 's/n');
-    const neighborhood = fmt(addr?.neighborhood);
-    const cep          = formatCEP(addr?.cep);
-    const city         = fmt(addr?.city, 'Manaus');
-    const state        = fmt(addr?.state, 'AM');
+    const street       = fmt(volunteer.street);
+    const number       = fmt(volunteer.number, 's/n');
+    const neighborhood = fmt(volunteer.neighborhood);
+    const cep          = formatCEP(volunteer.zipCode);
+    const city         = fmt(volunteer.city, 'Manaus');
+    const state        = fmt(volunteer.state, 'AM');
 
     doc
       .font('Helvetica-Bold').fontSize(10).text('VOLUNTÁRIO: ', { continued: true })
       .font('Helvetica').fontSize(10).text(
         `${volunteer.name}, ${fmt(volunteer.nationality, 'brasileiro(a)')}, ` +
         `${fmt(volunteer.maritalStatus)}, ${fmt(volunteer.profession)}, ` +
-        `Carteira de Identidade nº ${fmt(volunteer.rg)}, CPF nº ${volunteer.cpf}, ` +
+        `Carteira de Identidade nº ${fmt(volunteer.rg)}, CPF nº ${fmt(volunteer.document)}, ` +
         `residente e domiciliado na ${street}, nº ${number}, ` +
         `Bairro ${neighborhood}, CEP nº ${cep}, ` +
         `Município de ${city}, Estado de ${state}.`,

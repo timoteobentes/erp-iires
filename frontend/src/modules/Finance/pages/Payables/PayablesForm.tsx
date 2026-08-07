@@ -14,6 +14,7 @@ import { partnersService } from '../../../People/services/partners.service';
 import { accountPlansService, type AccountPlan } from '../../services/accountPlans.service';
 import { costCentersService, type CostCenter } from '../../services/costCenters.service';
 import type { Attachment } from '../../services/transactions.service';
+import { InstitutionalContextSelect } from '../../../../components/InstitutionalContextSelect';
 
 // ──────────────────────────────────────────────────────────────
 // HELPERS
@@ -123,6 +124,7 @@ export default function PayablesForm() {
           observations:  t.observations  ?? '',
           projectId:     t.projectId     ?? undefined,
           partnerId:     t.partnerId     ?? undefined,
+          contextId:     t.contextId     ?? undefined,
         });
         if (t.attachments && Array.isArray(t.attachments)) {
           const atts = t.attachments as Attachment[];
@@ -153,6 +155,7 @@ export default function PayablesForm() {
       costCenterId:  values.costCenterId  || undefined,
       projectId:     values.projectId     || undefined,
       partnerId:     values.partnerId     || undefined,
+      contextId:     values.contextId     || undefined,
     };
 
     try {
@@ -325,6 +328,15 @@ export default function PayablesForm() {
                 <Select size="large" className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
                   placeholder="Selecione (opcional)" allowClear showSearch optionFilterProp="label"
                   options={partnerOptions} />
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item
+                label={<span className="font-bold text-dark-600">Relacionado a</span>}
+                name="contextId"
+                extra="A despesa permanece sendo do IIRes; o contexto apenas informa sua relação institucional."
+              >
+                <InstitutionalContextSelect size="large" className="w-full" />
               </Form.Item>
             </Col>
           </Row>

@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Módulos de Autenticação
 import LoginModule from '../modules/Login';
-import SignUpModule from '../modules/SignUp';
 import ForgotPasswordModule from '../modules/ForgotPassword';
 import ResetPasswordModule from '../modules/ResetPassword';
 
@@ -41,13 +40,14 @@ import ReportsDashboard from '../modules/Reports/pages/ReportsDashboard';
 import SystemSettings from '../modules/Settings/pages/SystemSettings';
 
 import UserProfile from '../modules/Profile/pages/UserProfile';
+import InstitutionalContextsPage from '../modules/InstitutionalContexts/pages/InstitutionalContextsPage';
 
 export function AppRoutes() {
   return (
     <Routes>
       {/* Rotas Públicas */}
       <Route path="/login" element={<LoginModule />} />
-      <Route path="/signup" element={<SignUpModule />} />
+      <Route path="/signup" element={<Navigate to="/login" replace />} />
       <Route path="/forgot-password" element={<ForgotPasswordModule />} />
       <Route path="/reset-password" element={<ResetPasswordModule />} />
 
@@ -62,6 +62,7 @@ export function AppRoutes() {
           <Route path="/projects/new" element={<FormProjects />} />
           <Route path="/projects/:id/edit" element={<FormProjects />} />
           <Route path="/projects/:id" element={<ViewProjects />} />
+          <Route path="/institutional-contexts" element={<InstitutionalContextsPage />} />
 
           {/* Módulo Financeiro */}
           <Route path="/finance" element={<FinanceOverview />} />
