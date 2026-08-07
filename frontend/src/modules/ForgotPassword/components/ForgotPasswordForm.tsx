@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, Input, Button, notification } from 'antd';
 import { useState } from 'react';
 import { authService } from '../../Auth/services/auth.service';
-import logoOriginal from '../../../assets/logo-original.png';
+import logoSigetes from '../../../assets/logo-sigetes.png';
 
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'E-mail é obrigatório').email('Formato de e-mail inválido'),
@@ -40,7 +40,7 @@ export function ForgotPasswordForm() {
 
   return (
     <div className="w-full max-w-[400px] mx-auto p-8 lg:p-0">
-      <img src={logoOriginal} alt="IIRes" className="w-full h-auto opacity-100" />
+      <img src={logoSigetes} alt="SIGETES" className="w-full max-w-[220px] h-auto" />
       
       <div className="my-8">
         <h1 className="text-[26px] font-semibold text-gray-900 mb-1.5 leading-tight tracking-tight">Esqueceu a senha?</h1>
@@ -63,7 +63,7 @@ export function ForgotPasswordForm() {
                   {...field}
                   type="email"
                   placeholder="Seu e-mail cadastrado"
-                  className="w-full px-4 py-2.5 text-sm border-gray-200 rounded-lg focus:ring-4 focus:ring-[#635BFF]/10 focus:border-[#635BFF] transition-all" 
+                  className="w-full px-4 py-2.5 text-sm border-gray-200 rounded-lg focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all" 
                 />
               </Form.Item>
             )}
@@ -74,14 +74,14 @@ export function ForgotPasswordForm() {
           type="primary"
           htmlType="submit"
           loading={isLoading}
-          className="w-full bg-[#026B11] hover:!bg-[#026B11]/80 active:!bg-[#026B11]/60 text-white text-[15px] font-medium h-auto py-2.5 rounded-lg transition-colors mt-4 border-none shadow-none"
+          className="w-full bg-primary-500 hover:!bg-primary-600 active:!bg-primary-700 text-white text-[15px] font-medium h-auto py-2.5 rounded-lg transition-colors mt-4 border-none shadow-none"
         >
            Enviar link de recuperação
         </Button>
       </Form>
 
       <div className="mt-8 text-center">
-        <a href="/login" className="text-[14px] text-gray-600 hover:text-[#524ae3] hover:underline font-medium flex items-center justify-center gap-2">
+        <a href="/login" className="text-[14px] text-gray-600 hover:text-primary-700 hover:underline font-medium flex items-center justify-center gap-2">
           ← Voltar para o login
         </a>
       </div>

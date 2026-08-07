@@ -20,8 +20,8 @@ const TYPE_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { label: 'Todos os Status', value: 'all' },
-  { label: 'Ativos', value: 'active' },
-  { label: 'Inativos', value: 'inactive' },
+  { label: 'Ativos', value: 'ACTIVE' },
+  { label: 'Inativos', value: 'INACTIVE' },
 ];
 
 // ============================================================
@@ -108,7 +108,7 @@ export default function PartnersList() {
           await partnersService.inactivate(id);
           notification.success({ message: 'Registro inativado com sucesso.' });
           setAllPartners((prev) =>
-            prev.map((p) => (p.id === id ? { ...p, status: 'inactive' } : p)),
+            prev.map((p) => (p.id === id ? { ...p, status: 'INACTIVE' } : p)),
           );
         } catch {
           notification.error({
@@ -184,12 +184,12 @@ export default function PartnersList() {
       render: (status) => (
         <Tag
           className={`rounded-full font-bold uppercase text-[10px] px-3 border ${
-            status === 'active'
+            status === 'ACTIVE'
               ? 'bg-green-50 text-green-600 border-green-200'
               : 'bg-dark-50 text-dark-400 border-dark-200'
           }`}
         >
-          {status === 'active' ? 'Ativo' : 'Inativo'}
+          {status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
         </Tag>
       ),
     },
@@ -215,11 +215,11 @@ export default function PartnersList() {
               className="text-dark-400 hover:text-primary-500"
             />
           </Tooltip>
-          <Tooltip title={record.status === 'active' ? 'Inativar' : 'Já Inativo'}>
+          <Tooltip title={record.status === 'ACTIVE' ? 'Inativar' : 'Já Inativo'}>
             <Button
               type="text"
               icon={<Trash2 size={18} />}
-              disabled={record.status === 'inactive'}
+              disabled={record.status === 'INACTIVE'}
               onClick={() => handleInactivate(record.id, record.name)}
               className="text-dark-400 hover:text-red-500 disabled:opacity-30"
             />
@@ -425,7 +425,7 @@ export default function PartnersList() {
                                 label: 'Inativar',
                                 icon: <Trash2 size={16} />,
                                 danger: true,
-                                disabled: item.status === 'inactive',
+                                disabled: item.status === 'INACTIVE',
                                 onClick: () => handleInactivate(item.id, item.name),
                               },
                             ],
@@ -459,12 +459,12 @@ export default function PartnersList() {
                         <div>
                           <Tag
                             className={`rounded-full font-bold uppercase text-[9px] px-2 border m-0 ${
-                              item.status === 'active'
+                              item.status === 'ACTIVE'
                                 ? 'bg-green-50 text-green-600 border-green-200'
                                 : 'bg-dark-50 text-dark-400 border-dark-200'
                             }`}
                           >
-                            {item.status === 'active' ? 'Ativo' : 'Inativo'}
+                            {item.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
                           </Tag>
                           <Tag className="text-[9px] font-bold px-1 py-0 border-dark-200 ml-1">
                             {item.partnershipType}

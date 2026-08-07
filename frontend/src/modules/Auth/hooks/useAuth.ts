@@ -31,12 +31,8 @@ export function useAuth() {
   const handleSignUp = async (data: SignupFormValues) => {
     try {
       setIsLoading(true);
-      await authService.signUp(data);
-
-      // Auto-login após cadastro
-      const loginResponse = await authService.signIn({ email: data.email, password: data.password });
-
-      login(loginResponse.token, loginResponse.user);
+      const response = await authService.signUp(data);
+      login(response.token, response.user, response.refreshToken);
 
       notification.success({ message: 'Sucesso', description: 'Cadastro realizado com sucesso!' });
       navigate('/dashboard');

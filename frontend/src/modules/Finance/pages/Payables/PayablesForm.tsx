@@ -93,7 +93,7 @@ export default function PayablesForm() {
       costCentersService.list(true),
     ]).then(([projects, partners, plans, centers]) => {
       setProjectOptions(projects.map((p) => ({ value: p.id, label: p.name })));
-      setPartnerOptions(partners.filter((p) => p.status === 'active').map((p) => ({ value: p.id, label: p.name })));
+      setPartnerOptions(partners.filter((p) => p.status === 'ACTIVE').map((p) => ({ value: p.id, label: p.name })));
       setAccountPlans(plans);
       setCostCenters(centers);
     }).catch(() => {});

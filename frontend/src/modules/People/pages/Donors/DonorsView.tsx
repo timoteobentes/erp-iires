@@ -79,7 +79,7 @@ export default function DonorsView() {
       onOk: async () => {
         try {
           await donorsService.inactivate(donor.id);
-          setDonor((prev) => (prev ? { ...prev, status: 'inactive' } : null));
+          setDonor((prev) => (prev ? { ...prev, status: 'INACTIVE' } : null));
           notification.success({ message: 'Doador inativado com sucesso.' });
         } catch {
           notification.error({
@@ -141,7 +141,7 @@ export default function DonorsView() {
 
   if (!donor) return null;
 
-  const isActive = donor.status === 'active';
+  const isActive = donor.status === 'ACTIVE';
   const memberSince = donor.createdAt
     ? new Date(donor.createdAt).toLocaleDateString('pt-BR')
     : '—';

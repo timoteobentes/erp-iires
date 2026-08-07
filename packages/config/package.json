@@ -3,5 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "theme/colors.js"
+  "main": "theme/colors.js",
+  "types": "theme/colors.d.ts"
 }

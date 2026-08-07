@@ -23,8 +23,8 @@ const AVAILABILITY_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { label: 'Todos', value: 'all' },
-  { label: 'Disponíveis', value: 'active' },
-  { label: 'Indisponíveis', value: 'inactive' },
+  { label: 'Disponíveis', value: 'ACTIVE' },
+  { label: 'Indisponíveis', value: 'INACTIVE' },
 ];
 
 // ============================================================
@@ -109,7 +109,7 @@ export default function VolunteersList() {
           await volunteersService.inactivate(id);
           notification.success({ message: 'Voluntário inativado com sucesso.' });
           setAllVolunteers((prev) =>
-            prev.map((v) => (v.id === id ? { ...v, status: 'inactive' } : v)),
+            prev.map((v) => (v.id === id ? { ...v, status: 'INACTIVE' } : v)),
           );
         } catch {
           notification.error({ message: 'Erro', description: 'Não foi possível inativar o voluntário.' });
@@ -190,12 +190,12 @@ export default function VolunteersList() {
       render: (status) => (
         <Tag
           className={`rounded-full font-bold uppercase text-[10px] px-3 border ${
-            status === 'active'
+            status === 'ACTIVE'
               ? 'bg-green-50 text-green-600 border-green-200'
               : 'bg-dark-50 text-dark-400 border-dark-200'
           }`}
         >
-          {status === 'active' ? 'Disponível' : 'Indisponível'}
+          {status === 'ACTIVE' ? 'Disponível' : 'Indisponível'}
         </Tag>
       ),
     },
@@ -221,11 +221,11 @@ export default function VolunteersList() {
               className="text-dark-400 hover:text-primary-500"
             />
           </Tooltip>
-          <Tooltip title={record.status === 'active' ? 'Inativar' : 'Já Inativo'}>
+          <Tooltip title={record.status === 'ACTIVE' ? 'Inativar' : 'Já Inativo'}>
             <Button
               type="text"
               icon={<Trash2 size={18} />}
-              disabled={record.status === 'inactive'}
+              disabled={record.status === 'INACTIVE'}
               onClick={() => handleInactivate(record.id, record.name)}
               className="text-dark-400 hover:text-red-500 disabled:opacity-30"
             />
@@ -434,7 +434,7 @@ export default function VolunteersList() {
                                 label: 'Inativar',
                                 icon: <Trash2 size={16} />,
                                 danger: true,
-                                disabled: volunteer.status === 'inactive',
+                                disabled: volunteer.status === 'INACTIVE',
                                 onClick: () => handleInactivate(volunteer.id, volunteer.name),
                               },
                             ],
@@ -452,7 +452,7 @@ export default function VolunteersList() {
                       {/* Status Indicator */}
                       <div
                         className={`absolute top-4 left-4 w-2.5 h-2.5 rounded-full ${
-                          volunteer.status === 'active' ? 'bg-green-500' : 'bg-dark-300'
+                          volunteer.status === 'ACTIVE' ? 'bg-green-500' : 'bg-dark-300'
                         }`}
                       />
 

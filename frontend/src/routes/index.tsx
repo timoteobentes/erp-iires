@@ -4,6 +4,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginModule from '../modules/Login';
 import ForgotPasswordModule from '../modules/ForgotPassword';
 import ResetPasswordModule from '../modules/ResetPassword';
+import AcceptInviteModule from '../modules/AcceptInvite';
+import SignUpModule from '../modules/SignUp';
 
 // Componentes de Layout
 import { ProtectedRoute } from './ProtectedRoute';
@@ -47,9 +49,10 @@ export function AppRoutes() {
     <Routes>
       {/* Rotas Públicas */}
       <Route path="/login" element={<LoginModule />} />
-      <Route path="/signup" element={<Navigate to="/login" replace />} />
+      <Route path="/signup" element={<SignUpModule />} />
       <Route path="/forgot-password" element={<ForgotPasswordModule />} />
       <Route path="/reset-password" element={<ResetPasswordModule />} />
+      <Route path="/accept-invite" element={<AcceptInviteModule />} />
 
       {/* Área Logada */}
       <Route element={<ProtectedRoute />}>

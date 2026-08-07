@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@sigetes/shared": "*",
+    "@sigetes/config": "*",
     "@ant-design/icons": "^6.1.1",
     "@dicebear/avataaars": "^9.4.2",
     "@dicebear/core": "^9.4.2",

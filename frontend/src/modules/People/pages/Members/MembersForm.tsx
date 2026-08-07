@@ -266,7 +266,7 @@ export default function MembersForm() {
   useEffect(() => {
     teamService.list().then((data) => {
       setSupervisorOptions(
-        data.filter((m) => m.status === 'active').map((m) => ({ value: m.id, label: m.name }))
+        data.filter((m) => m.status === 'ACTIVE').map((m) => ({ value: m.id, label: m.name }))
       );
     }).catch(() => {});
   }, []);

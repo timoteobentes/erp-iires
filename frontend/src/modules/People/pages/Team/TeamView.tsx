@@ -81,7 +81,7 @@ export default function TeamView() {
       onOk: async () => {
         try {
           await teamService.inactivate(member.id);
-          setMember((prev) => (prev ? { ...prev, status: 'inactive' } : null));
+          setMember((prev) => (prev ? { ...prev, status: 'INACTIVE' } : null));
           notification.success({ message: 'Acesso revogado com sucesso.' });
         } catch {
           notification.error({ message: 'Erro', description: 'Não foi possível inativar o colaborador.' });
@@ -124,7 +124,7 @@ export default function TeamView() {
 
   if (!member) return null;
 
-  const isActive = member.status === 'active';
+  const isActive = member.status === 'ACTIVE';
   const joinedAt = member.createdAt
     ? new Date(member.createdAt).toLocaleDateString('pt-BR')
     : '—';

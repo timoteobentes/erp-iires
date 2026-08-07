@@ -211,7 +211,7 @@ export default function ProjectView() {
           <Progress
             percent={project.progress}
             showInfo={false}
-            strokeColor={project.progress === 100 ? '#026B11' : '#0047AF'}
+            strokeColor={project.progress === 100 ? '#1D9D19' : '#054EC0'}
             trailColor="#F1F5F9"
             strokeWidth={10}
           />

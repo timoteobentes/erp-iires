@@ -20,8 +20,8 @@ const GROUP_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Todos' },
-  { value: 'active', label: 'Apenas Ativos' },
-  { value: 'inactive', label: 'Apenas Inativos' },
+  { value: 'ACTIVE', label: 'Apenas Ativos' },
+  { value: 'INACTIVE', label: 'Apenas Inativos' },
 ];
 
 const GROUP_COLORS: Record<string, string> = {
@@ -114,7 +114,7 @@ export default function TeamList() {
           notification.success({ message: 'Acesso revogado com sucesso.' });
           // Atualiza status localmente (sem refetch completo)
           setAllMembers((prev) =>
-            prev.map((m) => (m.id === id ? { ...m, status: 'inactive' } : m)),
+            prev.map((m) => (m.id === id ? { ...m, status: 'INACTIVE' } : m)),
           );
         } catch {
           notification.error({ message: 'Erro', description: 'Não foi possível inativar o colaborador.' });
@@ -175,12 +175,12 @@ export default function TeamList() {
       render: (status: string) => (
         <Tag
           className={`rounded-full font-bold uppercase text-[10px] px-3 border ${
-            status === 'active'
+            status === 'ACTIVE'
               ? 'bg-green-50 text-green-600 border-green-200'
               : 'bg-dark-50 text-dark-400 border-dark-200'
           }`}
         >
-          {status === 'active' ? 'Ativo' : 'Inativo'}
+          {status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
         </Tag>
       ),
     },
@@ -206,11 +206,11 @@ export default function TeamList() {
               className="text-dark-400 hover:text-primary-500 transition-colors"
             />
           </Tooltip>
-          <Tooltip title={record.status === 'active' ? 'Revogar Acesso' : 'Já Inativo'}>
+          <Tooltip title={record.status === 'ACTIVE' ? 'Revogar Acesso' : 'Já Inativo'}>
             <Button
               type="text"
               icon={<Trash2 size={18} />}
-              disabled={record.status === 'inactive'}
+              disabled={record.status === 'INACTIVE'}
               onClick={() => handleInactivate(record.id, record.name)}
               className="text-dark-400 hover:text-red-500 transition-colors disabled:opacity-30"
             />

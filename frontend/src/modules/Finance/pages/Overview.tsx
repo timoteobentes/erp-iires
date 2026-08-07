@@ -94,8 +94,8 @@ export default function FinanceOverview() {
       },
       yAxis: {
         type: 'value',
-        splitLine: { lineStyle: { type: 'dashed', color: '#ebecef' } },
-        axisLabel: { color: '#7a8296', formatter: (v: number) => fmt(v) },
+        splitLine: { lineStyle: { type: 'dashed', color: '#E3E6EA' } },
+        axisLabel: { color: '#576B7F', formatter: (v: number) => fmt(v) },
       },
       series: [
         {
@@ -104,11 +104,11 @@ export default function FinanceOverview() {
           smooth: true,
           showSymbol: false,
           data: monthlyData.map((m) => m.income),
-          itemStyle: { color: '#389334' },
+          itemStyle: { color: '#009082' },
           areaStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(56, 147, 52, 0.2)' },
-              { offset: 1, color: 'rgba(56, 147, 52, 0)' },
+              { offset: 0, color: 'rgba(0, 144, 130, 0.2)' },
+              { offset: 1, color: 'rgba(0, 144, 130, 0)' },
             ]),
           },
         },
@@ -118,11 +118,11 @@ export default function FinanceOverview() {
           smooth: true,
           showSymbol: false,
           data: monthlyData.map((m) => m.expense),
-          itemStyle: { color: '#0047AF' },
+          itemStyle: { color: '#054EC0' },
           areaStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(0, 71, 175, 0.2)' },
-              { offset: 1, color: 'rgba(0, 71, 175, 0)' },
+              { offset: 0, color: 'rgba(5, 78, 192, 0.2)' },
+              { offset: 1, color: 'rgba(5, 78, 192, 0)' },
             ]),
           },
         },

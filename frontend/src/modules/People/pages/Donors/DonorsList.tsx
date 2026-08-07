@@ -14,8 +14,8 @@ import { donorsService, type Donor } from '../../services/donors.service';
 
 const STATUS_OPTIONS = [
   { label: 'Todos os Status', value: 'all' },
-  { label: 'Apenas Ativos', value: 'active' },
-  { label: 'Apenas Inativos', value: 'inactive' },
+  { label: 'Apenas Ativos', value: 'ACTIVE' },
+  { label: 'Apenas Inativos', value: 'INACTIVE' },
 ];
 
 const TYPE_OPTIONS = [
@@ -115,7 +115,7 @@ export default function DonorsList() {
           await donorsService.inactivate(id);
           notification.success({ message: 'Doador inativado com sucesso.' });
           setAllDonors((prev) =>
-            prev.map((d) => (d.id === id ? { ...d, status: 'inactive' } : d)),
+            prev.map((d) => (d.id === id ? { ...d, status: 'INACTIVE' } : d)),
           );
         } catch {
           notification.error({ message: 'Erro', description: 'Não foi possível inativar o doador.' });
@@ -180,12 +180,12 @@ export default function DonorsList() {
       render: (status) => (
         <Tag
           className={`rounded-full font-bold uppercase text-[10px] px-3 border ${
-            status === 'active'
+            status === 'ACTIVE'
               ? 'bg-green-50 text-green-600 border-green-200'
               : 'bg-dark-50 text-dark-400 border-dark-200'
           }`}
         >
-          {status === 'active' ? 'Ativo' : 'Inativo'}
+          {status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
         </Tag>
       ),
     },
@@ -211,11 +211,11 @@ export default function DonorsList() {
               className="text-dark-400 hover:text-primary-500 transition-colors"
             />
           </Tooltip>
-          <Tooltip title={record.status === 'active' ? 'Inativar' : 'Já Inativo'}>
+          <Tooltip title={record.status === 'ACTIVE' ? 'Inativar' : 'Já Inativo'}>
             <Button
               type="text"
               icon={<Trash2 size={18} />}
-              disabled={record.status === 'inactive'}
+              disabled={record.status === 'INACTIVE'}
               onClick={() => handleInactivate(record.id, record.name)}
               className="text-dark-400 hover:text-red-500 transition-colors disabled:opacity-30"
             />
@@ -437,7 +437,7 @@ export default function DonorsList() {
                                 label: 'Inativar',
                                 icon: <Trash2 size={16} />,
                                 danger: true,
-                                disabled: donor.status === 'inactive',
+                                disabled: donor.status === 'INACTIVE',
                                 onClick: () => handleInactivate(donor.id, donor.name),
                               },
                             ],
@@ -460,12 +460,12 @@ export default function DonorsList() {
                         />
                         <Tag
                           className={`rounded-full font-bold uppercase text-[9px] px-2 border m-0 ${
-                            donor.status === 'active'
+                            donor.status === 'ACTIVE'
                               ? 'bg-green-50 text-green-600 border-green-200'
                               : 'bg-dark-50 text-dark-400 border-dark-200'
                           }`}
                         >
-                          {donor.status === 'active' ? 'Ativo' : 'Inativo'}
+                          {donor.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
                         </Tag>
                       </div>
 

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Layout, Menu } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
-import iiresLogoBranca from '../assets/iires-logo-branca.png';
+import iconeMosaico from '../assets/icone-mosaico-sigetes.png';
 import {
   LayoutDashboard,
   Briefcase,
@@ -82,12 +82,17 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
       className="hidden md:block h-screen fixed left-0 top-0 bottom-0 z-50 !bg-dark-900 border-r border-dark-800 shadow-xl"
     >
       <div className="flex flex-col h-full">
-        <div className="shrink-0 flex items-center justify-center py-6 px-4">
+        <div className="shrink-0 flex items-center justify-center gap-2.5 py-6 px-4">
           <img
-            src={iiresLogoBranca}
-            alt="IIRes Logo"
-            className={`transition-all duration-300 ${collapsed ? 'w-8' : 'w-32'}`}
+            src={iconeMosaico}
+            alt="SIGETES"
+            className="w-8 shrink-0"
           />
+          {!collapsed && (
+            <span className="text-white font-semibold text-lg tracking-tight whitespace-nowrap">
+              SIGETES
+            </span>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar pb-6">

@@ -22,6 +22,7 @@ import { useAuth } from '../modules/Auth/hooks/useAuth';
 import { getAvatarUrl } from '../utils/avatar';
 import { useNotifications } from '../hooks/useNotifications';
 import type { Notification } from '../services/notifications.service';
+import OrganizationSwitcher from './OrganizationSwitcher';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -103,6 +104,8 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onMenuClick }) => {
             className="w-64 placeholder:text-dark-300 text-sm"
           />
         </div>
+
+        <OrganizationSwitcher />
       </div>
 
       <div className="flex items-center gap-6">

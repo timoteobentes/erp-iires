@@ -47,6 +47,7 @@ authRoutes.get('/me', authMiddleware, authController.getMe);
 authRoutes.patch('/me', authMiddleware, validate(updateMeSchema), authController.updateMe);
 authRoutes.patch('/change-password', authMiddleware, validate(changePasswordSchema), authController.changePassword);
 authRoutes.post('/switch-org', authMiddleware, validate(switchOrgSchema), authController.switchOrg);
+authRoutes.get('/my-organizations', authMiddleware, authController.myOrganizations);
 authRoutes.post('/logout', authMiddleware, authController.logout);
 
 export default authRoutes;

@@ -139,14 +139,14 @@ export default function Dashboard() {
           name: 'Captação',
           type: 'bar',
           barWidth: '20%',
-          itemStyle: { color: '#389334', borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: '#009082', borderRadius: [4, 4, 0, 0] },
           data: monthlyData.map((m) => m.income),
         },
         {
           name: 'Investimento',
           type: 'bar',
           barWidth: '20%',
-          itemStyle: { color: '#0047AF', borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: '#054EC0', borderRadius: [4, 4, 0, 0] },
           data: monthlyData.map((m) => m.expense),
         },
       ],
@@ -171,8 +171,8 @@ export default function Dashboard() {
       tooltip: {
         trigger: 'item',
         backgroundColor: '#ffffff',
-        borderColor: '#ebecef',
-        textStyle: { color: '#313450' },
+        borderColor: '#E3E6EA',
+        textStyle: { color: '#001F3D' },
       },
       series: [
         {
@@ -184,8 +184,8 @@ export default function Dashboard() {
           label: { show: false },
           labelLine: { show: false },
           data: [
-            { value: projectStatusCounts.active, name: 'Em Andamento', itemStyle: { color: '#389334' } },
-            { value: projectStatusCounts.completed, name: 'Concluídos', itemStyle: { color: '#0047AF' } },
+            { value: projectStatusCounts.active, name: 'Em Andamento', itemStyle: { color: '#009082' } },
+            { value: projectStatusCounts.completed, name: 'Concluídos', itemStyle: { color: '#054EC0' } },
             { value: projectStatusCounts.other, name: 'Outros', itemStyle: { color: '#FFC107' } },
           ].filter((d) => d.value > 0),
         },

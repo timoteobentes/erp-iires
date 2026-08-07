@@ -10,12 +10,11 @@ import { projectsService, type Project } from '../services/projects.service';
 // ============================================================
 
 const statusConfig: Record<string, { text: string; classes: string }> = {
-  active: { text: 'Em Andamento', classes: 'bg-primary-50 text-primary-600 border-primary-200' },
-  planning: { text: 'Planejamento', classes: 'bg-blue-50 text-blue-600 border-blue-200' },
-  completed: { text: 'Concluído', classes: 'bg-secondary-50 text-secondary-600 border-secondary-200' },
-  blocked: { text: 'Bloqueado', classes: 'bg-red-50 text-red-600 border-red-200' },
-  draft: { text: 'Rascunho', classes: 'bg-dark-50 text-dark-400 border-dark-200' },
-  canceled: { text: 'Cancelado', classes: 'bg-dark-50 text-dark-400 border-dark-200' },
+  ACTIVE: { text: 'Em Andamento', classes: 'bg-primary-50 text-primary-600 border-primary-200' },
+  PLANNING: { text: 'Planejamento', classes: 'bg-secondary-50 text-secondary-600 border-secondary-200' },
+  COMPLETED: { text: 'Concluído', classes: 'bg-success-50 text-success-600 border-success-200' },
+  PAUSED: { text: 'Pausado', classes: 'bg-warning-50 text-warning-700 border-warning-200' },
+  CANCELED: { text: 'Cancelado', classes: 'bg-dark-50 text-dark-400 border-dark-200' },
 };
 
 const formatDate = (iso: string | null | undefined) => {
@@ -77,7 +76,7 @@ export default function ProjectList() {
       centered: true,
       onOk: async () => {
         try {
-          await projectsService.changeStatus(id, 'canceled');
+          await projectsService.changeStatus(id, 'CANCELED');
           setProjects((prev) => prev.filter((p) => p.id !== id));
           notification.success({ message: 'Projeto cancelado com sucesso.' });
         } catch {
@@ -216,11 +215,11 @@ export default function ProjectList() {
                   onChange={setStatusFilter}
                   options={[
                     { value: 'all', label: 'Todos os Status' },
-                    { value: 'active', label: 'Em Andamento' },
-                    { value: 'planning', label: 'Planejamento' },
-                    { value: 'completed', label: 'Concluídos' },
-                    { value: 'blocked', label: 'Bloqueados' },
-                    { value: 'draft', label: 'Rascunhos' },
+                    { value: 'ACTIVE', label: 'Em Andamento' },
+                    { value: 'PLANNING', label: 'Planejamento' },
+                    { value: 'COMPLETED', label: 'Concluídos' },
+                    { value: 'PAUSED', label: 'Pausados' },
+                    { value: 'CANCELED', label: 'Cancelados' },
                   ]}
                 />
               </Col>

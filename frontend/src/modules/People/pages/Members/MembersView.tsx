@@ -94,10 +94,10 @@ export default function MembersView() {
         try {
           if (isVolunteer && volunteer) {
             await volunteersService.inactivate(volunteer.id);
-            setVolunteer((prev) => (prev ? { ...prev, status: 'inactive' } : null));
+            setVolunteer((prev) => (prev ? { ...prev, status: 'INACTIVE' } : null));
           } else if (member) {
             await teamService.inactivate(member.id);
-            setMember((prev) => (prev ? { ...prev, status: 'inactive' } : null));
+            setMember((prev) => (prev ? { ...prev, status: 'INACTIVE' } : null));
           }
           notification.success({ message: 'Colaborador inativado com sucesso.' });
         } catch {
@@ -150,7 +150,7 @@ export default function MembersView() {
   const data = isVolunteer ? volunteer : member;
   if (!data) return null;
 
-  const isActive   = data.status === 'active';
+  const isActive   = data.status === 'ACTIVE';
   const joinedAt   = data.createdAt ? new Date(data.createdAt).toLocaleDateString('pt-BR') : '—';
   const bondType   = isVolunteer ? 'Voluntário' : (member?.bondType ?? 'CLT');
   const bondStyle  = BOND_COLORS[bondType] ?? { bg: 'bg-dark-50', text: 'text-dark-600', border: 'border-dark-200' };

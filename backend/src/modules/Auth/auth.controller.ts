@@ -1,92 +1,10 @@
 import { type Request, type Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import prisma from '../../config/prisma.js';
 import { MailService } from '../../shared/services/mail.service.js';
 import { DEFAULT_ROLES } from '@sigetes/shared';
-
-const JWT_SECRET = () => process.env.JWT_SECRET || 'secret-fallback-nao-use-em-prod';
-const ACCESS_TOKEN_EXPIRES_IN = '1h';
-const REFRESH_TOKEN_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
-
-type BasicUser = { id: string; name: string; email: string };
-type MembershipWithRole = {
-  id: string;
-  organizationId: string;
-  isOwner: boolean;
-  role: { name: string; permissions: string[] };
-  organization: { id: string; slug: string; tradeName: string | null; legalName: string };
-};
-
-function generateAccessToken(user: BasicUser, membership: MembershipWithRole) {
-  return jwt.sign(
-    {
-      sub: user.id,
-      name: user.name,
-      email: user.email,
-      orgId: membership.organizationId,
-      membershipId: membership.id,
-      isOwner: membership.isOwner,
-      permissions: membership.role.permissions,
-    },
-    JWT_SECRET(),
-    { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
-  );
-}
-
-async function issueRefreshToken(userId: string, req: Request, familyId?: string) {
-  const raw = crypto.randomBytes(40).toString('hex');
-  const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
-  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES_MS);
-  await prisma.refreshToken.create({
-    data: {
-      userId,
-      tokenHash,
-      familyId: familyId ?? crypto.randomUUID(),
-      expiresAt,
-      userAgent: (req.headers['user-agent'] as string) ?? null,
-      ipAddress: req.ip ?? null,
-    },
-  });
-  return raw;
-}
-
-/** Busca o vínculo ativo do usuário com uma organização (a informada, ou a primeira, por padrão). */
-async function resolveMembership(userId: string, organizationId?: string): Promise<MembershipWithRole | null> {
-  return prisma.membership.findFirst({
-    where: { userId, status: 'ACTIVE', ...(organizationId ? { organizationId } : {}) },
-    orderBy: { createdAt: 'asc' },
-    select: {
-      id: true,
-      organizationId: true,
-      isOwner: true,
-      role: { select: { name: true, permissions: true } },
-      organization: { select: { id: true, slug: true, tradeName: true, legalName: true } },
-    },
-  });
-}
-
-function serializeSession(user: BasicUser & { avatarUrl?: string | null; phone?: string | null }, membership: MembershipWithRole) {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    avatarUrl: user.avatarUrl ?? null,
-    phone: user.phone ?? null,
-    organization: {
-      id: membership.organization.id,
-      slug: membership.organization.slug,
-      name: membership.organization.tradeName || membership.organization.legalName,
-    },
-    membership: {
-      id: membership.id,
-      isOwner: membership.isOwner,
-      role: membership.role.name,
-      permissions: membership.role.permissions,
-    },
-  };
-}
+import { generateAccessToken, issueRefreshToken, resolveMembership, serializeSession } from './auth.tokens.js';
 
 function slugify(text: string): string {
   return text
@@ -102,7 +20,11 @@ export class AuthController {
   // 1. CADASTRO DE NOVA INSTITUIÇÃO (cria User dono + Organization + Membership OWNER)
   async signUp(req: Request, res: Response): Promise<void> {
     try {
-      const { name, email, password, organizationName, document } = req.body;
+      const {
+        name, email, password, organizationName, document, legalNature,
+        zipCode, street, number, complement, neighborhood, city, state,
+        legalRepName, legalRepDocument, legalRepRole, legalRepEmail,
+      } = req.body;
 
       if (!name || !email || !password || !organizationName) {
         res.status(400).json({ error: 'Nome, e-mail, senha e nome da instituição são obrigatórios.' });
@@ -131,8 +53,19 @@ export class AuthController {
             legalName: organizationName,
             tradeName: organizationName,
             document: document || `PENDENTE-${crypto.randomBytes(6).toString('hex')}`,
-            legalNature: 'OUTRO',
+            legalNature: legalNature || 'OUTRO',
             email,
+            zipCode: zipCode || null,
+            street: street || null,
+            number: number || null,
+            complement: complement || null,
+            neighborhood: neighborhood || null,
+            city: city || null,
+            state: state || null,
+            legalRepName: legalRepName || null,
+            legalRepDocument: legalRepDocument || null,
+            legalRepRole: legalRepRole || null,
+            legalRepEmail: legalRepEmail || null,
             status: 'ACTIVE',
             onboardedAt: new Date(),
           },
@@ -426,6 +359,39 @@ export class AuthController {
       res.status(200).json({ token: accessToken, user: serializeSession(user, membership) });
     } catch (error) {
       console.error('Erro no switchOrg:', error);
+      res.status(500).json({ error: 'Erro interno no servidor.' });
+    }
+  }
+
+  // 8b. LISTAR MINHAS ORGANIZAÇÕES (para o seletor de organização)
+  async myOrganizations(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const memberships = await prisma.membership.findMany({
+        where: { userId, status: 'ACTIVE' },
+        select: {
+          id: true,
+          isOwner: true,
+          organizationId: true,
+          role: { select: { name: true } },
+          organization: { select: { id: true, slug: true, tradeName: true, legalName: true, logoUrl: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      res.json({
+        organizations: memberships.map((m) => ({
+          organizationId: m.organizationId,
+          name: m.organization.tradeName || m.organization.legalName,
+          slug: m.organization.slug,
+          logoUrl: m.organization.logoUrl,
+          role: m.role.name,
+          isOwner: m.isOwner,
+          isCurrent: m.organizationId === req.user!.organizationId,
+        })),
+      });
+    } catch (error) {
+      console.error('Erro no myOrganizations:', error);
       res.status(500).json({ error: 'Erro interno no servidor.' });
     }
   }

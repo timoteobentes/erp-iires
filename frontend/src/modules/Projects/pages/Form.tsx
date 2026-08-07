@@ -48,8 +48,8 @@ export default function ProjectForm() {
           donorsService.list(),
         ]);
 
-        const activeTeam = teamData.filter((m) => m.status === 'active');
-        const activeVols = volunteersData.filter((v) => v.status === 'active');
+        const activeTeam = teamData.filter((m) => m.status === 'ACTIVE');
+        const activeVols = volunteersData.filter((v) => v.status === 'ACTIVE');
 
         setLeaderOptions(activeTeam.map((m) => ({ value: m.id, label: m.name })));
 
@@ -59,13 +59,13 @@ export default function ProjectForm() {
         ]);
 
         setPartnerOptions(
-          partnersData.filter((p) => p.status === 'active' && p.partnershipType === 'Parceiro').map((p) => ({ value: p.id, label: p.name })),
+          partnersData.filter((p) => p.status === 'ACTIVE' && p.partnershipType === 'Parceiro').map((p) => ({ value: p.id, label: p.name })),
         );
         setSupplierOptions(
-          partnersData.filter((p) => p.status === 'active' && p.partnershipType === 'Fornecedor').map((p) => ({ value: p.id, label: p.name })),
+          partnersData.filter((p) => p.status === 'ACTIVE' && p.partnershipType === 'Fornecedor').map((p) => ({ value: p.id, label: p.name })),
         );
         setDonorOptions(
-          donorsData.filter((d) => d.status === 'active').map((d) => ({ value: d.id, label: d.name })),
+          donorsData.filter((d) => d.status === 'ACTIVE').map((d) => ({ value: d.id, label: d.name })),
         );
       } catch {
         // silencia erro de carregamento de opções
@@ -216,7 +216,7 @@ export default function ProjectForm() {
         onFinish={onFinish}
         className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-500 delay-100"
         requiredMark={false}
-        initialValues={{ status: 'draft' }}
+        initialValues={{ status: 'PLANNING' }}
       >
         {/* BLOCO 1: Informações Básicas */}
         <Card className="rounded-2xl shadow-soft border-dark-100" bodyStyle={{ padding: '32px' }}>

@@ -9,7 +9,7 @@ export const authService = {
 
   async signUp(data: SignupFormValues) {
     const response = await api.post('/auth/signup', data);
-    return response.data;
+    return response.data as { token: string; refreshToken: string; user: any; message: string };
   },
 
   async getMe() {
@@ -35,6 +35,19 @@ export const authService = {
   async resetPassword(data: { token: string; newPassword: string }) {
     const response = await api.post('/auth/reset-password', data);
     return response.data;
+  },
+
+  async myOrganizations() {
+    const response = await api.get('/auth/my-organizations');
+    return response.data.organizations as Array<{
+      organizationId: string; name: string; slug: string; logoUrl: string | null;
+      role: string; isOwner: boolean; isCurrent: boolean;
+    }>;
+  },
+
+  async switchOrg(organizationId: string) {
+    const response = await api.post('/auth/switch-org', { organizationId });
+    return response.data as { token: string; user: any };
   },
 
   async logout() {

@@ -11,6 +11,10 @@ import notificationsRoutes from './modules/Notifications/notifications.routes.js
 import accountPlansRoutes from './modules/Financial/AccountPlans/account-plans.routes.js';
 import costCentersRoutes from './modules/Financial/CostCenters/cost-centers.routes.js';
 import institutionalContextsRoutes from './modules/InstitutionalContexts/institutional-contexts.routes.js';
+import organizationsRoutes from './modules/Organizations/organizations.routes.js';
+import membershipsRoutes from './modules/Organizations/memberships.routes.js';
+import rolesRoutes from './modules/Organizations/roles.routes.js';
+import invitesRoutes from './modules/Organizations/invites.routes.js';
 
 const routes = Router();
 
@@ -26,5 +30,9 @@ routes.use('/notifications', notificationsRoutes);
 routes.use('/account-plans', accountPlansRoutes);
 routes.use('/cost-centers', costCentersRoutes);
 routes.use('/institutional-contexts', institutionalContextsRoutes);
+routes.use('/organizations', organizationsRoutes);
+routes.use('/memberships', membershipsRoutes);
+routes.use('/roles', rolesRoutes);
+routes.use('/invites', invitesRoutes);
 
 export default routes;

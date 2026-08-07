@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -31,7 +31,7 @@
 /* Fallback/Overrides Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d1d4db transparent;
+  scrollbar-color: #BFC7CE transparent;
   /* dark-200 color approx */
 }
 
@@ -47,13 +47,13 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #d1d4db;
+    background: #BFC7CE;
     /* Cor dark-200 do nosso design system */
     border-radius: 10px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #a8aebc;
+    background: #94A1AE;
     /* Cor dark-300 */
   }
 }
@@ -81,7 +81,7 @@
 }
 
 .custom-dark-menu .ant-menu-item-selected {
-  background-color: #389334 !important;
-  /* bg-primary-500 */
+  background-color: #009082 !important;
+  /* bg-primary-500 (packages/config/theme/colors.js) */
   color: #ffffff !important;
 }

@@ -29,7 +29,7 @@ function toBadge(bond: string) {
 }
 
 function statusBadge(status: string) {
-  return status === 'active'
+  return status === 'ACTIVE'
     ? <span className="inline-flex items-center gap-1 text-xs font-bold text-secondary-600"><span className="w-2 h-2 rounded-full bg-secondary-500 inline-block" /> Ativo</span>
     : <span className="inline-flex items-center gap-1 text-xs font-bold text-dark-400"><span className="w-2 h-2 rounded-full bg-dark-300 inline-block" /> Inativo</span>;
 }
@@ -176,7 +176,7 @@ export default function MembersList() {
                 className="text-dark-400 hover:text-primary-600 rounded-lg"
               />
             </Tooltip>
-            {record.status === 'active' && (
+            {record.status === 'ACTIVE' && (
               <Tooltip title="Inativar">
                 <Popconfirm
                   title={`Inativar ${record.name}?`}
@@ -252,8 +252,8 @@ export default function MembersList() {
           className="rounded-xl w-36 [&_.ant-select-selector]:!rounded-xl"
           onChange={setFilterStatus}
           options={[
-            { value: 'active',   label: 'Ativo' },
-            { value: 'inactive', label: 'Inativo' },
+            { value: 'ACTIVE',   label: 'Ativo' },
+            { value: 'INACTIVE', label: 'Inativo' },
           ]}
         />
       </div>

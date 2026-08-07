@@ -79,7 +79,7 @@ export default function PartnersView() {
       onOk: async () => {
         try {
           await partnersService.inactivate(partner.id);
-          setPartner((prev) => (prev ? { ...prev, status: 'inactive' } : null));
+          setPartner((prev) => (prev ? { ...prev, status: 'INACTIVE' } : null));
           notification.success({ message: 'Registro inativado com sucesso.' });
         } catch {
           notification.error({
@@ -134,7 +134,7 @@ export default function PartnersView() {
 
   if (!partner) return null;
 
-  const isActive = partner.status === 'active';
+  const isActive = partner.status === 'ACTIVE';
   const isFornecedor = partner.partnershipType === 'Fornecedor';
   const memberSince = partner.createdAt
     ? new Date(partner.createdAt).toLocaleDateString('pt-BR')

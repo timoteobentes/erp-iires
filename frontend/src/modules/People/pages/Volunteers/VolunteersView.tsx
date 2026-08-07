@@ -69,7 +69,7 @@ export default function VolunteersView() {
       onOk: async () => {
         try {
           await volunteersService.inactivate(volunteer.id);
-          setVolunteer((prev) => (prev ? { ...prev, status: 'inactive' } : null));
+          setVolunteer((prev) => (prev ? { ...prev, status: 'INACTIVE' } : null));
           notification.success({ message: 'Voluntário inativado com sucesso.' });
         } catch {
           notification.error({
@@ -124,7 +124,7 @@ export default function VolunteersView() {
 
   if (!volunteer) return null;
 
-  const isActive = volunteer.status === 'active';
+  const isActive = volunteer.status === 'ACTIVE';
   const joinedAt = volunteer.createdAt
     ? new Date(volunteer.createdAt).toLocaleDateString('pt-BR')
     : '—';
