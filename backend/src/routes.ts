@@ -15,6 +15,7 @@ import organizationsRoutes from './modules/Organizations/organizations.routes.js
 import membershipsRoutes from './modules/Organizations/memberships.routes.js';
 import rolesRoutes from './modules/Organizations/roles.routes.js';
 import invitesRoutes from './modules/Organizations/invites.routes.js';
+import attachmentsRoutes from './modules/Attachments/attachments.routes.js';
 
 const routes = Router();
 
@@ -34,5 +35,6 @@ routes.use('/organizations', organizationsRoutes);
 routes.use('/memberships', membershipsRoutes);
 routes.use('/roles', rolesRoutes);
 routes.use('/invites', invitesRoutes);
+routes.use('/attachments', attachmentsRoutes);
 
 export default routes;

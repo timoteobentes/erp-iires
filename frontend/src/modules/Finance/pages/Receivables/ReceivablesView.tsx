@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Tag, Row, Col, Divider, Skeleton, notification } from 'antd';
-import { ArrowLeft, Edit, Calendar, User, Tag as TagIcon, Briefcase } from 'lucide-react';
+import { ArrowLeft, Edit, Calendar, User, Tag as TagIcon, Briefcase, Paperclip } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { transactionsService, type Transaction } from '../../services/transactions.service';
+import { attachmentsService, type AttachmentDTO } from '../../services/attachments.service';
 
 // ============================================================
 // HELPERS
@@ -21,6 +22,7 @@ export default function ReceivablesView() {
   const { id } = useParams<{ id: string }>();
 
   const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export default function ReceivablesView() {
         setLoading(true);
         const data = await transactionsService.getById(id);
         setTransaction(data);
+        attachmentsService.list({ transactionId: id }).then(setAttachments).catch(() => {});
       } catch {
         notification.error({ message: 'Erro', description: 'Transação não encontrada.' });
         navigate('/finance/receivables');
@@ -41,6 +44,15 @@ export default function ReceivablesView() {
 
     fetchTransaction();
   }, [id, navigate]);
+
+  const openAttachment = async (attachmentId: string) => {
+    try {
+      const { url } = await attachmentsService.getDownloadUrl(attachmentId);
+      window.open(url, '_blank', 'noopener');
+    } catch {
+      notification.error({ message: 'Erro', description: 'Não foi possível abrir o anexo.' });
+    }
+  };
 
   if (loading) {
     return (
@@ -139,18 +151,39 @@ export default function ReceivablesView() {
               </div>
             </Col>
           )}
-          {transaction.donor && (
+          {transaction.person && (
             <Col xs={24} sm={12}>
               <div className="flex gap-3">
                 <User className="text-dark-300 shrink-0 mt-0.5" size={20} />
                 <div>
                   <p className="text-xs font-bold text-dark-400 uppercase tracking-wider">Doador</p>
-                  <p className="text-base font-medium text-dark-900">{transaction.donor.name}</p>
+                  <p className="text-base font-medium text-dark-900">{transaction.person.name}</p>
                 </div>
               </div>
             </Col>
           )}
         </Row>
+
+        {attachments.length > 0 && (
+          <>
+            <Divider />
+            <p className="text-xs font-bold text-dark-400 uppercase tracking-wider mb-3">Anexos</p>
+            <div className="space-y-2">
+              {attachments.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => openAttachment(a.id)}
+                  className="w-full flex items-center gap-3 bg-dark-50 border border-dark-100 rounded-xl px-4 py-2.5 text-left hover:bg-dark-100 transition-colors"
+                >
+                  <Paperclip size={13} className="text-dark-400 shrink-0" />
+                  <span className="flex-1 text-sm font-bold text-dark-700 truncate">{a.fileName}</span>
+                  <span className="text-xs text-dark-400 shrink-0">{(a.sizeBytes / 1024).toFixed(0)} KB</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </Card>
     </div>
   );

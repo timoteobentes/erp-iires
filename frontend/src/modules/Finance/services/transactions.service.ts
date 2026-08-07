@@ -4,13 +4,6 @@ import { api } from '../../../api/api';
 // TIPOS
 // ──────────────────────────────────────────────────────────────
 
-export interface Attachment {
-  name: string;
-  mimeType: string;
-  size: number;
-  data: string; // base64
-}
-
 export interface Transaction {
   id: string;
   title: string;
@@ -18,11 +11,10 @@ export interface Transaction {
   type: 'INCOME' | 'EXPENSE';
   amount: number;
   date: string;
-  status: 'PAID' | 'PENDING' | 'CANCELED';
+  status: 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELED';
   category?: string | null;
   paymentMethod?: string | null;
   observations?: string | null;
-  attachments?: Attachment[] | null;
   accountPlanId?: string | null;
   costCenterId?: string | null;
   groupId?: string | null;
@@ -32,12 +24,10 @@ export interface Transaction {
   recurrenceFrequency?: string | null;
   recurrenceEndDate?: string | null;
   projectId?: string | null;
-  donorId?: string | null;
-  partnerId?: string | null;
+  personId?: string | null;
   contextId?: string | null;
   project?: { id: string; name: string } | null;
-  donor?: { id: string; name: string } | null;
-  partner?: { id: string; name: string } | null;
+  person?: { id: string; name: string; roles: string[] } | null;
   accountPlan?: { id: string; code: string; name: string } | null;
   costCenter?: { id: string; code: string; name: string } | null;
   context?: { id: string; name: string; type: string; status: string } | null;
@@ -65,12 +55,10 @@ export interface TransactionPayload {
   category?: string;
   paymentMethod?: string;
   observations?: string;
-  attachments?: Attachment[];
   accountPlanId?: string | null;
   costCenterId?: string | null;
   projectId?: string | null;
-  donorId?: string | null;
-  partnerId?: string | null;
+  personId?: string | null;
   contextId?: string | null;
 }
 
@@ -83,12 +71,10 @@ export interface BatchPayload {
   status?: string;
   paymentMethod?: string;
   observations?: string;
-  attachments?: Attachment[];
   accountPlanId?: string | null;
   costCenterId?: string | null;
   projectId?: string | null;
-  donorId?: string | null;
-  partnerId?: string | null;
+  personId?: string | null;
   contextId?: string | null;
   firstDate: string;
   // Parcelamento

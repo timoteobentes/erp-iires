@@ -28,7 +28,11 @@ export class PartnersController {
           })
         : await prisma.person.create({
             data: {
-              kind: 'COMPANY',
+              kind: data.personKind === 'PF'
+                ? 'INDIVIDUAL'
+                : data.personKind === 'PJ'
+                  ? 'COMPANY'
+                  : (String(data.cnpj || '').replace(/\D/g, '').length === 11 ? 'INDIVIDUAL' : 'COMPANY'),
               roles: ['PARTNER'],
               name: data.name,
               document: data.cnpj,

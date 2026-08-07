@@ -97,7 +97,7 @@ export default function PayablesList() {
         <div>
           <p className="font-bold text-dark-900 leading-tight">{record.title}</p>
           <p className="text-xs text-dark-400 font-medium mt-0.5">
-            {record.description || record.partner?.name || '—'}
+            {record.description || record.person?.name || '—'}
           </p>
         </div>
       ),

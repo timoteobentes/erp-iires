@@ -52,9 +52,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
       icon: <Network size={20} />,
       label: 'Pessoas & Rede',
       children: [
-        { key: '/people/members',  label: 'Colaboradores' },
-        { key: '/people/donors',   label: 'Doadores' },
-        { key: '/people/partners', label: 'Parceiros & Fornecedores' },
+        { key: '/people/members', label: 'Colaboradores' },
+        { key: '/people/network', label: 'Doadores & Parceiros' },
       ],
     });
 

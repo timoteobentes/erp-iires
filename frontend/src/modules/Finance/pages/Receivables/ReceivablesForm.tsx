@@ -1,18 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ptBR from 'antd/locale/pt_BR';
 import {
   Form, Input, Button, DatePicker, Select, Card, Row, Col,
-  Skeleton, notification, InputNumber, Upload, Divider,
-  type UploadFile,
+  Skeleton, notification, InputNumber, Divider,
 } from 'antd';
-import { ArrowLeft, User, Paperclip, Trash2, Repeat, CreditCard, Layers } from 'lucide-react';
+import { ArrowLeft, User, Repeat, CreditCard, Layers } from 'lucide-react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { transactionsService } from '../../services/transactions.service';
 import { projectsService } from '../../../Projects/services/projects.service';
+import { networkService } from '../../../People/services/network.service';
 import { accountPlansService, type AccountPlan } from '../../services/accountPlans.service';
 import { costCentersService, type CostCenter } from '../../services/costCenters.service';
-import type { Attachment } from '../../services/transactions.service';
+import { AttachmentUploader, type AttachmentUploaderHandle } from '../../components/AttachmentUploader';
 import { InstitutionalContextSelect } from '../../../../components/InstitutionalContextSelect';
 
 // ──────────────────────────────────────────────────────────────
@@ -30,25 +30,8 @@ const formatCurrency = (v: string | undefined) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 };
 
-const MAX_FILE_SIZE  = 3 * 1024 * 1024;
-const MAX_FILE_COUNT = 3;
-
 const fmt = (n: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
-
-async function fileToAttachment(file: File): Promise<Attachment> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = (e) => resolve({
-      name:     file.name,
-      mimeType: file.type,
-      size:     file.size,
-      data:     (e.target!.result as string).split(',')[1],
-    });
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 type Mode = 'single' | 'installment' | 'recurring';
 
@@ -74,10 +57,10 @@ export default function ReceivablesForm() {
   const [mode, setMode]                         = useState<Mode>('single');
   const [installmentTotal, setInstallmentTotal] = useState(2);
   const [projectOptions, setProjectOptions]     = useState<{ value: string; label: string }[]>([]);
+  const [personOptions, setPersonOptions]       = useState<{ value: string; label: string }[]>([]);
   const [accountPlans, setAccountPlans]         = useState<AccountPlan[]>([]);
   const [costCenters, setCostCenters]           = useState<CostCenter[]>([]);
-  const [attachments, setAttachments]           = useState<Attachment[]>([]);
-  const [fileList, setFileList]                 = useState<UploadFile[]>([]);
+  const attachmentUploaderRef                   = useRef<AttachmentUploaderHandle>(null);
 
   // totalAmount derivado do valor normalizado do formulário
   const amountWatched = Form.useWatch('amount', form);
@@ -86,10 +69,12 @@ export default function ReceivablesForm() {
   useEffect(() => {
     Promise.all([
       projectsService.list(),
+      networkService.list(),
       accountPlansService.list({ type: 'INCOME', active: true }),
       costCentersService.list(true),
-    ]).then(([projects, plans, centers]) => {
+    ]).then(([projects, people, plans, centers]) => {
       setProjectOptions(projects.map((p) => ({ value: p.id, label: p.name })));
+      setPersonOptions(people.filter((p) => p.status === 'ACTIVE').map((p) => ({ value: p.id, label: p.name })));
       setAccountPlans(plans);
       setCostCenters(centers);
     }).catch(() => {});
@@ -119,13 +104,9 @@ export default function ReceivablesForm() {
           costCenterId:  t.costCenterId  ?? undefined,
           observations:  t.observations  ?? '',
           projectId:     t.projectId     ?? undefined,
+          personId:      t.personId      ?? undefined,
           contextId:     t.contextId     ?? undefined,
         });
-        if (t.attachments && Array.isArray(t.attachments)) {
-          const atts = t.attachments as Attachment[];
-          setAttachments(atts);
-          setFileList(atts.map((a, i) => ({ uid: String(i), name: a.name, status: 'done' as const })));
-        }
       } catch {
         notification.error({ message: 'Erro', description: 'Não foi possível carregar os dados da receita.' });
         navigate('/finance/receivables');
@@ -145,42 +126,50 @@ export default function ReceivablesForm() {
       status:        values.status  ?? 'PENDING',
       paymentMethod: values.paymentMethod || undefined,
       observations:  values.observations  || undefined,
-      attachments:   attachments.length > 0 ? attachments : undefined,
       accountPlanId: values.accountPlanId || undefined,
       costCenterId:  values.costCenterId  || undefined,
       projectId:     values.projectId     || undefined,
+      personId:      values.personId      || undefined,
       contextId:     values.contextId     || undefined,
     };
 
     try {
       setSubmitting(true);
+      let firstTransactionId: string | undefined = id;
 
       if (isEditing || mode === 'single') {
         if (isEditing) {
           await transactionsService.update(id!, base);
           notification.success({ message: 'Receita atualizada com sucesso!' });
         } else {
-          await transactionsService.create(base);
+          const created = await transactionsService.create(base);
+          firstTransactionId = created.id;
           notification.success({ message: 'Receita registrada com sucesso!' });
         }
       } else if (mode === 'installment') {
-        await transactionsService.createBatch({
+        const { transactions } = await transactionsService.createBatch({
           ...base,
           groupType:        'INSTALLMENT',
           firstDate:        base.date,
           totalAmount:      parseCurrency(values.amount),
           installmentTotal,
         });
+        firstTransactionId = transactions[0]?.id;
         notification.success({ message: `${installmentTotal} recebimentos parcelados criados!` });
       } else {
-        await transactionsService.createBatch({
+        const { transactions } = await transactionsService.createBatch({
           ...base,
           groupType:           'RECURRING',
           firstDate:           base.date,
           recurrenceFrequency: values.recurrenceFrequency,
           recurrenceEndDate:   values.recurrenceEndDate?.toISOString(),
         });
+        firstTransactionId = transactions[0]?.id;
         notification.success({ message: 'Recebimento recorrente criado com sucesso!' });
+      }
+
+      if (firstTransactionId && attachmentUploaderRef.current?.hasPending()) {
+        await attachmentUploaderRef.current.uploadPending({ transactionId: firstTransactionId });
       }
 
       navigate('/finance/receivables');
@@ -318,6 +307,13 @@ export default function ReceivablesForm() {
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
+              <Form.Item label={<span className="font-bold text-dark-600">Doador / Pagador Cadastrado</span>} name="personId">
+                <Select size="large" className="rounded-xl [&_.ant-select-selector]:!rounded-xl"
+                  placeholder="Selecione (opcional)" allowClear showSearch optionFilterProp="label"
+                  options={personOptions} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
               <Form.Item
                 label={<span className="font-bold text-dark-600">Relacionado a</span>}
                 name="contextId"
@@ -391,51 +387,8 @@ export default function ReceivablesForm() {
             </Col>
             <Col span={24}>
               <Form.Item label={<span className="font-bold text-dark-600">Anexos</span>}
-                extra={<span className="text-xs text-dark-400">Máx 3 arquivos · 3 MB cada · PDF, JPG, PNG, DOCX, XLSX</span>}>
-                <Upload
-                  fileList={fileList}
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx"
-                  beforeUpload={async (file) => {
-                    if (attachments.length >= MAX_FILE_COUNT) {
-                      notification.warning({ message: `Máximo de ${MAX_FILE_COUNT} arquivos.` });
-                      return Upload.LIST_IGNORE;
-                    }
-                    if (file.size > MAX_FILE_SIZE) {
-                      notification.warning({ message: 'Arquivo muito grande (máx 3 MB).' });
-                      return Upload.LIST_IGNORE;
-                    }
-                    const att = await fileToAttachment(file);
-                    setAttachments((prev) => [...prev, att]);
-                    return false;
-                  }}
-                  onRemove={(file) => {
-                    setAttachments((prev) => prev.filter((a) => a.name !== file.name));
-                    setFileList((prev) => prev.filter((f) => f.uid !== file.uid));
-                  }}
-                  onChange={({ fileList: fl }) => setFileList(fl)}
-                >
-                  <Button icon={<Paperclip size={15} />} className="rounded-xl">
-                    Selecionar arquivo
-                  </Button>
-                </Upload>
-                {attachments.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {attachments.map((a, i) => (
-                      <div key={i} className="flex items-center gap-3 bg-dark-50 border border-dark-100 rounded-xl px-4 py-2.5">
-                        <Paperclip size={13} className="text-dark-400 shrink-0" />
-                        <span className="flex-1 text-sm font-bold text-dark-700 truncate">{a.name}</span>
-                        <span className="text-xs text-dark-400 shrink-0">{(a.size / 1024).toFixed(0)} KB</span>
-                        <button type="button" onClick={() => {
-                          setAttachments((prev) => prev.filter((_, j) => j !== i));
-                          setFileList((prev) => prev.filter((_, j) => j !== i));
-                        }}>
-                          <Trash2 size={14} className="text-dark-300 hover:text-red-500 transition-colors" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                extra={<span className="text-xs text-dark-400">Máx 20 MB por arquivo · PDF, JPG, PNG, DOCX, XLSX</span>}>
+                <AttachmentUploader ref={attachmentUploaderRef} transactionId={id} category="COMPROVANTE" />
               </Form.Item>
             </Col>
           </Row>

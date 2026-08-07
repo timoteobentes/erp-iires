@@ -30,12 +30,9 @@ import CostCentersList from '../modules/Finance/pages/CostCenters/CostCentersLis
 import MembersList from '../modules/People/pages/Members/MembersList';
 import MembersForm from '../modules/People/pages/Members/MembersForm';
 import MembersView from '../modules/People/pages/Members/MembersView';
-import DonorsList from '../modules/People/pages/Donors/DonorsList';
-import DonorsForm from '../modules/People/pages/Donors/DonorsForm';
-import DonorsView from '../modules/People/pages/Donors/DonorsView';
-import PartnersList from '../modules/People/pages/Partners/PartnersList';
-import PartnersForm from '../modules/People/pages/Partners/PartnersForm';
-import PartnersView from '../modules/People/pages/Partners/PartnersView';
+import NetworkList from '../modules/People/pages/Network/NetworkList';
+import NetworkForm from '../modules/People/pages/Network/NetworkForm';
+import NetworkView from '../modules/People/pages/Network/NetworkView';
 
 import ReportsDashboard from '../modules/Reports/pages/ReportsDashboard';
 
@@ -92,14 +89,15 @@ export function AppRoutes() {
           <Route path="/people/team/*" element={<Navigate to="/people/members" replace />} />
           <Route path="/people/volunteers" element={<Navigate to="/people/members" replace />} />
           <Route path="/people/volunteers/*" element={<Navigate to="/people/members" replace />} />
-          <Route path="/people/donors" element={<DonorsList />} />
-          <Route path="/people/donors/new" element={<DonorsForm />} />
-          <Route path="/people/donors/:id/edit" element={<DonorsForm />} />
-          <Route path="/people/donors/:id" element={<DonorsView />} />
-          <Route path="/people/partners" element={<PartnersList />} />
-          <Route path="/people/partners/new" element={<PartnersForm />} />
-          <Route path="/people/partners/:id/edit" element={<PartnersForm />} />
-          <Route path="/people/partners/:id" element={<PartnersView />} />
+          <Route path="/people/network" element={<NetworkList />} />
+          <Route path="/people/network/new" element={<NetworkForm />} />
+          <Route path="/people/network/:id/edit" element={<NetworkForm />} />
+          <Route path="/people/network/:id" element={<NetworkView />} />
+          {/* Redirects legados — Doadores e Parceiros viraram uma rede unificada */}
+          <Route path="/people/donors" element={<Navigate to="/people/network" replace />} />
+          <Route path="/people/donors/*" element={<Navigate to="/people/network" replace />} />
+          <Route path="/people/partners" element={<Navigate to="/people/network" replace />} />
+          <Route path="/people/partners/*" element={<Navigate to="/people/network" replace />} />
 
           {/* Módulo Relatórios */}
           <Route path="/reports" element={<ReportsDashboard />} />
